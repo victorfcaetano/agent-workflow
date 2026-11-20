@@ -49,6 +49,7 @@
 **Interfaces:**
 - `agent_workflow.cli.main(argv: list[str] | None = None) -> int`
 - `agent_workflow.assets_manifest.list_assets() -> dict[str, bytes]`; keys are safe project-relative POSIX paths.
+- Initial package version is `0.1.0`. Root templates are delimited by `<!-- agent-workflow:begin -->` and `<!-- agent-workflow:end -->`.
 - The initial catalog contains `AGENTS.md` and `CLAUDE.md`; Task 4 adds the shared skill assets using the exact paths listed there.
 - CLI subcommands are `install`, `init`, `update`, `doctor`, `status`, `verify`, `remove`, and `version`.
 
@@ -86,6 +87,7 @@ Expected: all tests pass.
 - `update(project_root: Path) -> OperationReport`
 - `remove(project_root: Path) -> OperationReport`
 - The manifest lives at `.agent-workflow/manifest.json`; each owned file entry stores its project-relative path, source version, and SHA-256 of the managed payload (the whole file or the marked block for shared instruction files).
+- Shared instruction blocks use exact markers `<!-- agent-workflow:begin -->` and `<!-- agent-workflow:end -->`.
 - Existing root instruction files receive a clearly delimited `agent-workflow` block. A new file contains only the managed block.
 
 - [ ] **Step 1: Write failing lifecycle tests**
