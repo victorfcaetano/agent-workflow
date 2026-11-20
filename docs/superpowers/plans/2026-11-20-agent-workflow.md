@@ -35,6 +35,7 @@
 
 **Files:**
 - Create: `.gitignore`
+- Create: `.gitattributes`
 - Create: `pyproject.toml`
 - Create: `agent_workflow/__init__.py`
 - Create: `agent_workflow/__main__.py`
@@ -113,6 +114,8 @@ Expected: all lifecycle cases pass, including a second install with no filesyste
 **Files:**
 - Create: `agent_workflow/config.py`
 - Create: `agent_workflow/commands.py`
+- Create: `agent_workflow/project_templates.py`
+- Create: `agent_workflow/project_templates.py`
 - Create: `tests/test_init.py`
 - Create: `tests/test_doctor_status.py`
 - Create: `tests/test_verify.py`
@@ -120,6 +123,8 @@ Expected: all lifecycle cases pass, including a second install with no filesyste
 
 **Interfaces:**
 - `initialize(project_root: Path) -> OperationReport` installs missing harness assets and creates only missing project context/config files.
+- `agent_workflow.project_templates.INIT_FILES: dict[str, str]` defines the empty `agent-workflow.toml` and topic context documents created by `initialize`.
+- `agent_workflow.project_templates.INIT_FILES: dict[str, str]` defines the empty `agent-workflow.toml` and context documents created by `initialize`.
 - `doctor(project_root: Path) -> list[Diagnostic]` reports detected host artifacts, project config, `openspec` availability, and incomplete onboarding without modifying files.
 - `status(project_root: Path) -> StatusReport` reports onboarding and active OpenSpec/change-artifact task state.
 - `verify(project_root: Path) -> list[CheckResult]` reads `agent-workflow.toml`; each `[[checks]]` record has `id`, non-empty `command: list[str]`, optional relative `cwd`, `timeout_seconds` in 1..3600, and `required` defaulting to true.
@@ -136,7 +141,7 @@ Expected: FAIL because initialization and diagnostic functions do not exist.
 
 - [ ] **Step 3: Implement idempotent bootstrap and read-only diagnostics**
 
-Create `agent-workflow.toml` and `docs/agent-workflow/context-index.md` only when absent. Mark onboarding as `pending`; do not infer languages, facts, or architecture in the CLI. Detect `claude`, `codex`, and `openspec` with `shutil.which` only.
+Create `agent-workflow.toml` plus context-index, architecture, domain, operations, validation, and open-questions documents only when absent. Mark onboarding as `pending`; do not infer languages, facts, or architecture in the CLI. Detect `claude`, `codex`, and `openspec` with `shutil.which` only.
 
 - [ ] **Step 4: Write failing verification tests**
 
@@ -165,12 +170,6 @@ Expected: all tests pass; no config or diagnostics command edits user-level agen
 - Create/update: `agent_workflow/assets/.agents/skills/agent-workflow-onboarding/SKILL.md`
 - Create/update: `agent_workflow/assets/.claude/skills/agent-workflow/SKILL.md`
 - Create/update: `agent_workflow/assets/.claude/skills/agent-workflow-onboarding/SKILL.md`
-- Create: `agent_workflow/assets/docs/agent-workflow/context-index.md`
-- Create: `agent_workflow/assets/docs/agent-workflow/architecture.md`
-- Create: `agent_workflow/assets/docs/agent-workflow/domain.md`
-- Create: `agent_workflow/assets/docs/agent-workflow/operations.md`
-- Create: `agent_workflow/assets/docs/agent-workflow/validation.md`
-- Create: `agent_workflow/assets/docs/agent-workflow/open-questions.md`
 - Create: `docs/architecture.md`
 - Create: `docs/extending.md`
 - Create: `docs/compatibility.md`
