@@ -58,7 +58,9 @@ class WorkflowAssetTests(unittest.TestCase):
 
     def test_review_only_tasks_do_not_mutate(self):
         work = self.skill(WORK).lower()
-        for term in ("review-only", "read-only", "do not modify", "full `agent-workflow verify` suite"):
+        for term in ("review-only", "read-only", "do not modify", "full `agent-workflow verify` suite",
+                     "when the task scope, acceptance criteria, or project policy calls for it",
+                     "for a small change, run focused relevant checks"):
             with self.subTest(term=term):
                 self.assertIn(term, work)
 
