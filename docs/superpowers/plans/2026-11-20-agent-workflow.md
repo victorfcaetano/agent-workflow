@@ -149,7 +149,7 @@ Create `agent-workflow.toml` plus context-index, architecture, domain, operation
 
 - [ ] **Step 4: Write failing verification tests**
 
-Test `test_verify_runs_argv_without_shell`, `test_verify_rejects_empty_or_non_string_command`, `test_verify_rejects_cwd_outside_project`, `test_verify_times_out_and_returns_failure`, `test_verify_aggregates_required_failures`, `test_verify_returns_configuration_error_when_no_checks`, `test_verify_rejects_batch_commands_before_any_execution`, `test_verify_resolves_relative_executable_from_check_cwd`, `test_verify_records_working_directory_removed_by_prior_check`, `test_verify_rejects_invalid_onboarding_before_execution`, and `test_nonregular_config_is_rejected_without_blocking` (POSIX only).
+Test `test_verify_runs_argv_without_shell`, `test_verify_rejects_empty_or_non_string_command`, `test_verify_rejects_cwd_outside_project`, `test_verify_times_out_and_returns_failure`, `test_verify_aggregates_required_failures`, `test_verify_returns_configuration_error_when_no_checks`, `test_verify_rejects_windows_batch_commands_before_any_execution`, `test_posix_executable_named_batch_extension_is_allowed`, `test_verify_resolves_relative_executable_from_check_cwd`, `test_verify_records_working_directory_removed_by_prior_check`, `test_verify_rejects_invalid_onboarding_before_execution`, and `test_nonregular_config_is_rejected_without_blocking` (POSIX only).
 
 - [ ] **Step 5: Run verification tests and confirm expected failures**
 
