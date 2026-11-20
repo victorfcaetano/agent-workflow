@@ -19,4 +19,8 @@ packages = ["agent_workflow"]
 version = {attr = "agent_workflow.__version__"}
 
 [tool.setuptools.package-data]
-agent_workflow = ["assets/*.md", "assets/**/*.md"]
+agent_workflow = [
+    "assets/*.md",
+    "assets/.agents/skills/*/SKILL.md",
+    "assets/.claude/skills/*/SKILL.md",
+]

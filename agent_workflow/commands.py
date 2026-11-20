@@ -98,6 +98,7 @@ def doctor(project_root: Path) -> list[Diagnostic]:
             diagnostics.append(Diagnostic("warning", f"{CONFIG_PATH}: missing. Onboarding is uninitialized."))
     except (ValueError, OSError) as error:
         diagnostics.append(Diagnostic("error", str(error)))
+    diagnostics.append(Diagnostic("info", "Static diagnostics only. Live host behavior requires a host session."))
     return diagnostics
 
 
