@@ -49,11 +49,12 @@
 **Interfaces:**
 - `agent_workflow.cli.main(argv: list[str] | None = None) -> int`
 - `agent_workflow.assets_manifest.list_assets() -> dict[str, bytes]`; keys are safe project-relative POSIX paths.
+- The initial catalog contains `AGENTS.md` and `CLAUDE.md`; Task 4 adds the shared skill assets using the exact paths listed there.
 - CLI subcommands are `install`, `init`, `update`, `doctor`, `status`, `verify`, `remove`, and `version`.
 
 - [ ] **Step 1: Write failing CLI and asset-inventory tests**
 
-Test `test_version_prints_package_version`, `test_unknown_command_returns_usage_error`, `test_asset_catalog_contains_required_roots`, `test_asset_paths_are_relative_and_unique`, and `test_all_assets_decode_as_utf8` using `unittest`.
+Test `test_version_prints_package_version`, `test_unknown_command_returns_usage_error`, `test_asset_catalog_contains_required_roots` (assert both root instruction paths exist), `test_asset_paths_are_relative_and_unique`, and `test_all_assets_decode_as_utf8` using `unittest`.
 
 - [ ] **Step 2: Run tests and confirm expected failures**
 
