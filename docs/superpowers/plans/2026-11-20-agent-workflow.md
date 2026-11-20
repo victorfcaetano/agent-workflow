@@ -77,6 +77,7 @@ Expected: all tests pass.
 - Create: `agent_workflow/manifest.py`
 - Create: `agent_workflow/paths.py`
 - Create: `agent_workflow/lifecycle.py`
+- Runtime artifact: `.agent-workflow.lock` is created and removed by lifecycle mutations
 - Modify: `agent_workflow/cli.py`
 - Test: `tests/test_manifest.py`
 - Test: `tests/test_lifecycle.py`
@@ -88,11 +89,12 @@ Expected: all tests pass.
 - `remove(project_root: Path) -> OperationReport`
 - The manifest lives at `.agent-workflow/manifest.json`; each owned file entry stores its project-relative path, source version, and SHA-256 of the managed payload (the whole file or the marked block for shared instruction files).
 - Shared instruction blocks use exact markers `<!-- agent-workflow:begin -->` and `<!-- agent-workflow:end -->`.
+- Install/update/remove serialize with an exclusive `.agent-workflow.lock`; an existing lock fails closed without mutating files. Normal operation removes the lock on exit. If forcibly terminated, a stale lock may remain; `doctor` reports it and advises inspection before manual cleanup.
 - Existing root instruction files receive a clearly delimited `agent-workflow` block. A new file contains only the managed block.
 
 - [ ] **Step 1: Write failing lifecycle tests**
 
-Add `test_install_is_idempotent`, `test_install_preserves_existing_instruction_text`, `test_install_does_not_claim_unowned_files`, `test_manifest_invalid_json_fails_before_writing`, `test_update_replaces_unchanged_managed_asset`, `test_update_refreshes_managed_block_without_losing_user_text`, `test_update_preserves_modified_asset_and_writes_conflict`, `test_update_preserves_modified_managed_block`, `test_remove_deletes_only_unchanged_owned_files`, `test_remove_preserves_user_text_around_unmodified_block`, `test_remove_keeps_modified_and_unowned_files`, and `test_manifest_path_traversal_is_rejected`.
+Add `test_install_is_idempotent`, `test_install_preserves_existing_instruction_text`, `test_install_does_not_claim_unowned_files`, `test_manifest_invalid_json_fails_before_writing`, `test_update_replaces_unchanged_managed_asset`, `test_update_refreshes_managed_block_without_losing_user_text`, `test_update_preserves_modified_asset_and_writes_conflict`, `test_update_preserves_modified_managed_block`, `test_remove_deletes_only_unchanged_owned_files`, `test_remove_preserves_user_text_around_unmodified_block`, `test_remove_keeps_modified_and_unowned_files`, `test_manifest_path_traversal_is_rejected`, and a controlled overlapping `update`/`remove` regression that proves serialization.
 
 - [ ] **Step 2: Run lifecycle tests and confirm expected failures**
 
@@ -105,7 +107,7 @@ Validate schema version, file paths, hash format, and duplicate entries before a
 
 - [ ] **Step 4: Implement lifecycle behavior and CLI output**
 
-Use manifest hashes to distinguish unchanged managed files from project customizations. Update modified files by leaving the active path untouched and writing the incoming bytes beneath `.agent-workflow/updates/`; report every preserved conflict. Removal deletes only unchanged owned files, removes an unchanged managed instruction block while preserving text around it, then removes empty harness-owned directories.
+Use manifest hashes to distinguish unchanged managed files from project customizations. Update modified files by leaving the active path untouched and writing the incoming bytes beneath `.agent-workflow/updates/`; report every preserved conflict. Serialize mutations through `.agent-workflow.lock`; fail immediately without writes if it already exists. Roll back ordinary write failures. Removal deletes only unchanged owned files, removes an unchanged managed instruction block while preserving text around it, then removes empty harness-owned directories. A forcibly terminated process may leave a lock and partial operation for operator inspection; Task 3 `doctor` reports this state without deleting the lock.
 
 - [ ] **Step 5: Run lifecycle tests**
 
@@ -135,7 +137,7 @@ Expected: all lifecycle cases pass, including a second install with no filesyste
 
 - [ ] **Step 1: Write failing bootstrap and diagnostic tests**
 
-Test `test_init_installs_and_creates_pending_context`, `test_init_preserves_existing_project_context`, `test_doctor_reports_missing_openspec_without_failure`, `test_doctor_is_read_only`, and `test_status_reports_onboarding_pending`.
+Test `test_init_installs_and_creates_pending_context`, `test_init_preserves_existing_project_context`, `test_doctor_reports_missing_openspec_without_failure`, `test_doctor_reports_existing_lock_without_mutation`, `test_doctor_is_read_only`, and `test_status_reports_onboarding_pending`.
 
 - [ ] **Step 2: Run bootstrap tests and confirm expected failures**
 
