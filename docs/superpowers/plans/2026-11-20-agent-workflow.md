@@ -129,8 +129,7 @@ Expected: all lifecycle cases pass, including a second install with no filesyste
 **Interfaces:**
 - `initialize(project_root: Path) -> OperationReport` installs missing harness assets and creates only missing project context/config files.
 - `agent_workflow.project_templates.INIT_FILES: dict[str, str]` defines the empty `agent-workflow.toml` and topic context documents created by `initialize`.
-- `agent_workflow.project_templates.INIT_FILES: dict[str, str]` defines the empty `agent-workflow.toml` and context documents created by `initialize`.
-- `doctor(project_root: Path) -> list[Diagnostic]` reports detected host artifacts, project config, `openspec` availability, and incomplete onboarding without modifying files.
+- - `doctor(project_root: Path) -> list[Diagnostic]` reports detected host artifacts, project config, `openspec` availability, and incomplete onboarding without modifying files.
 - `status(project_root: Path) -> StatusReport` reports onboarding and active OpenSpec/change-artifact task state.
 - `verify(project_root: Path) -> list[CheckResult]` reads `agent-workflow.toml`; each `[[checks]]` record has `id`, non-empty `command: list[str]`, optional relative `cwd`, `timeout_seconds` in 1..3600, and `required` defaulting to true.
 - CLI exit codes: `0` for success, `1` for a failing required check, and `2` for invalid configuration or no registered checks.
