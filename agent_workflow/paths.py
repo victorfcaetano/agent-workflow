@@ -53,5 +53,12 @@ def atomic_write(path: Path, content: bytes, *, mode: int | None = None,
         if before_replace is not None:
             before_replace()
         sibling.replace(path)
-    finally:
-        sibling.unlink(missing_ok=True)
+    except BaseException as error:
+        try:
+            # Windows refuses to unlink a sibling that inherited a read-only mode.
+            if mode is not None and not mode & stat.S_IWRITE:
+                sibling.chmod(mode | stat.S_IWRITE)
+            sibling.unlink(missing_ok=True)
+        except OSError as cleanup_error:
+            error.add_note(f"Could not clean up staged file {sibling}: {cleanup_error}")
+        raise

@@ -94,16 +94,17 @@ class _Changes:
                 mode = _prune_empty(project_path(self.root, name))
                 if mode is not None:
                     pruned.append((name, mode))
-        except (OSError, ValueError):
+        except (OSError, ValueError) as operation_error:
             for name, mode in reversed(pruned):
                 directory = project_path(self.root, name)
                 if not directory.exists():
                     directory.mkdir(mode=mode)
                     directory.chmod(mode)
             for name in reversed(applied):
-                path = project_path(self.root, name)
-                if _read(path) == self.pending[name]:
+                try:
                     self._change_file(name, self.pending[name], self.original[name], mode=deleted_modes.get(name))
+                except (OSError, ValueError) as restore_error:
+                    operation_error.add_note(f"Could not restore {name}: {restore_error}")
             for path in reversed(created):
                 _prune_empty(path)
             raise

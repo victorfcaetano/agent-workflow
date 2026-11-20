@@ -139,6 +139,29 @@ class LifecycleTests(unittest.TestCase):
         update(self.root)
         self.assertEqual(self.agents.read_bytes(), b"prefix\r\n" + incoming + b"suffix")
 
+    def test_rollback_conflict_preserves_edit_and_restores_other_files(self):
+        install(self.root)
+        before = self.project_bytes()
+        claude = self.root / "CLAUDE.md"
+        self.assets["AGENTS.md"] = self.assets["CLAUDE.md"] = BLOCK.replace(b"Original", b"Updated")
+        self.assets[SKILL] = b"Updated skill"
+        write_error = PermissionError("Injected skill write failure")
+
+        def fail_write_and_edit_during_rollback(path, content, **kwargs):
+            if path == self.skill:
+                raise write_error
+            if path == claude and content == BLOCK:
+                # The rollback has selected this file. An editor saves before publication.
+                claude.write_bytes(b"Edited during rollback")
+            atomic_write(path, content, **kwargs)
+
+        with patch("agent_workflow.lifecycle.atomic_write", side_effect=fail_write_and_edit_during_rollback):
+            with self.assertRaises((OSError, ValueError)) as raised:
+                update(self.root)
+        before[Path("CLAUDE.md")] = b"Edited during rollback"
+        self.assertEqual(self.project_bytes(), before)
+        self.assertIs(raised.exception, write_error)
+
     def test_update_preserves_modified_asset_and_writes_conflict(self):
         install(self.root)
         self.skill.write_bytes(b"Project skill")
