@@ -93,24 +93,24 @@ Expected: all tests pass.
 - Install/update/remove serialize with an exclusive `.agent-workflow.lock`; an existing lock fails closed without mutating files. Normal operation removes the lock on exit. If forcibly terminated, a stale lock may remain; `doctor` reports it and advises inspection before manual cleanup.
 - Existing root instruction files receive a clearly delimited `agent-workflow` block. A new file contains only the managed block.
 
-- [ ] **Step 1: Write failing lifecycle tests**
+- [x] **Step 1: Write failing lifecycle tests**
 
 Add `test_install_is_idempotent`, `test_install_preserves_existing_instruction_text`, `test_install_does_not_claim_unowned_files`, `test_manifest_invalid_json_fails_before_writing`, `test_update_replaces_unchanged_managed_asset`, `test_update_refreshes_managed_block_without_losing_user_text`, `test_update_preserves_modified_asset_and_writes_conflict`, `test_update_preserves_modified_managed_block`, `test_remove_deletes_only_unchanged_owned_files`, `test_remove_preserves_user_text_around_unmodified_block`, `test_remove_keeps_modified_and_unowned_files`, `test_manifest_path_traversal_is_rejected`, a controlled overlapping `update`/`remove` regression that proves serialization, `test_stale_lock_blocks_noop_install_and_update`, `test_stale_lock_blocks_remove_without_manifest`, `test_directory_prune_failure_restores_manifest_and_files`, `test_external_edit_between_replacement_steps_is_preserved`, `test_rollback_restores_original_file_mode` (skip mode assertion on Windows), `test_rollback_conflict_preserves_edit_and_restores_other_files`, and `test_atomic_write_removes_readonly_staged_temp`.
 
-- [ ] **Step 2: Run lifecycle tests and confirm expected failures**
+- [x] **Step 2: Run lifecycle tests and confirm expected failures**
 
 Run: `python -m unittest tests.test_manifest tests.test_lifecycle -v`
 Expected: FAIL because the ownership manifest and lifecycle functions do not exist.
 
-- [ ] **Step 3: Implement manifest validation and path containment**
+- [x] **Step 3: Implement manifest validation and path containment**
 
 Validate schema version, file paths, hash format, and duplicate entries before any write. Resolve the project root and every destination parent; refuse absolute paths, `..`, and paths that escape the target. Write files through a temporary sibling followed by `replace`.
 
-- [ ] **Step 4: Implement lifecycle behavior and CLI output**
+- [x] **Step 4: Implement lifecycle behavior and CLI output**
 
 Use manifest hashes to distinguish unchanged managed files from project customizations. Update modified files by leaving the active path untouched and writing the incoming bytes beneath `.agent-workflow/updates/`; report every preserved conflict. Acquire `.agent-workflow.lock` before deciding whether an operation is a no-op, including remove when no manifest exists; fail immediately without writes if it already exists. Recheck each planned destination immediately before its replacement/deletion. Preserve original file modes in rollback. Include directory pruning in the transaction: if pruning fails after file deletion, restore the removed directories and original files/manifest. Removal deletes only unchanged owned files and removes an unchanged managed instruction block while preserving text around it. A forcibly terminated process may leave a lock and partial operation for operator inspection; Task 3 `doctor` reports this state without deleting the lock.
 
-- [ ] **Step 5: Run lifecycle tests**
+- [x] **Step 5: Run lifecycle tests**
 
 Run: `python -m unittest tests.test_manifest tests.test_lifecycle -v`
 Expected: all lifecycle cases pass, including a second install with no filesystem changes.
@@ -120,7 +120,6 @@ Expected: all lifecycle cases pass, including a second install with no filesyste
 **Files:**
 - Create: `agent_workflow/config.py`
 - Create: `agent_workflow/commands.py`
-- Create: `agent_workflow/project_templates.py`
 - Create: `agent_workflow/project_templates.py`
 - Create: `tests/test_init.py`
 - Create: `tests/test_doctor_status.py`
