@@ -94,7 +94,7 @@ Expected: all tests pass.
 
 - [ ] **Step 1: Write failing lifecycle tests**
 
-Add `test_install_is_idempotent`, `test_install_preserves_existing_instruction_text`, `test_install_does_not_claim_unowned_files`, `test_manifest_invalid_json_fails_before_writing`, `test_update_replaces_unchanged_managed_asset`, `test_update_refreshes_managed_block_without_losing_user_text`, `test_update_preserves_modified_asset_and_writes_conflict`, `test_update_preserves_modified_managed_block`, `test_remove_deletes_only_unchanged_owned_files`, `test_remove_preserves_user_text_around_unmodified_block`, `test_remove_keeps_modified_and_unowned_files`, `test_manifest_path_traversal_is_rejected`, and a controlled overlapping `update`/`remove` regression that proves serialization.
+Add `test_install_is_idempotent`, `test_install_preserves_existing_instruction_text`, `test_install_does_not_claim_unowned_files`, `test_manifest_invalid_json_fails_before_writing`, `test_update_replaces_unchanged_managed_asset`, `test_update_refreshes_managed_block_without_losing_user_text`, `test_update_preserves_modified_asset_and_writes_conflict`, `test_update_preserves_modified_managed_block`, `test_remove_deletes_only_unchanged_owned_files`, `test_remove_preserves_user_text_around_unmodified_block`, `test_remove_keeps_modified_and_unowned_files`, `test_manifest_path_traversal_is_rejected`, a controlled overlapping `update`/`remove` regression that proves serialization, `test_stale_lock_blocks_noop_install_and_update`, `test_stale_lock_blocks_remove_without_manifest`, `test_directory_prune_failure_restores_manifest_and_files`, `test_external_edit_between_replacement_steps_is_preserved`, and `test_rollback_restores_original_file_mode` (skip mode assertion on Windows).
 
 - [ ] **Step 2: Run lifecycle tests and confirm expected failures**
 
@@ -107,7 +107,7 @@ Validate schema version, file paths, hash format, and duplicate entries before a
 
 - [ ] **Step 4: Implement lifecycle behavior and CLI output**
 
-Use manifest hashes to distinguish unchanged managed files from project customizations. Update modified files by leaving the active path untouched and writing the incoming bytes beneath `.agent-workflow/updates/`; report every preserved conflict. Serialize mutations through `.agent-workflow.lock`; fail immediately without writes if it already exists. Roll back ordinary write failures. Removal deletes only unchanged owned files, removes an unchanged managed instruction block while preserving text around it, then removes empty harness-owned directories. A forcibly terminated process may leave a lock and partial operation for operator inspection; Task 3 `doctor` reports this state without deleting the lock.
+Use manifest hashes to distinguish unchanged managed files from project customizations. Update modified files by leaving the active path untouched and writing the incoming bytes beneath `.agent-workflow/updates/`; report every preserved conflict. Acquire `.agent-workflow.lock` before deciding whether an operation is a no-op, including remove when no manifest exists; fail immediately without writes if it already exists. Recheck each planned destination immediately before its replacement/deletion. Preserve original file modes in rollback. Include directory pruning in the transaction: if pruning fails after file deletion, restore the removed directories and original files/manifest. Removal deletes only unchanged owned files and removes an unchanged managed instruction block while preserving text around it. A forcibly terminated process may leave a lock and partial operation for operator inspection; Task 3 `doctor` reports this state without deleting the lock.
 
 - [ ] **Step 5: Run lifecycle tests**
 
@@ -244,7 +244,7 @@ The software example is a small, tested Python application. The data-engineering
 
 - [ ] **Step 4: Write installation, usage, architecture, extension, compatibility, and contribution docs**
 
-Give copyable commands for Windows PowerShell and POSIX shells. State the Python version, package install paths, safe update/remove behavior, static-vs-live compatibility limits, and known constraints. Add a permissive OSI-approved license with the chosen SPDX identifier in repository metadata.
+Give copyable commands for Windows PowerShell and POSIX shells. State the Python version, package install paths, safe update/remove behavior, static-vs-live compatibility limits, and known constraints. Document that forced process termination may leave `.agent-workflow.lock` and partial files; `doctor` reports it without removal, and manual lock cleanup is safe only after confirming no workflow mutation is still running. Add a permissive OSI-approved license with the chosen SPDX identifier in repository metadata.
 
 - [ ] **Step 5: Add cross-platform CI**
 
