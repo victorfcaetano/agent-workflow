@@ -1,12 +1,15 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-workflow"
 dynamic = ["version"]
 description = "A project-scoped workflow for coding agents"
+readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = []
 
 [project.scripts]
@@ -14,6 +17,7 @@ agent-workflow = "agent_workflow.cli:main"
 
 [tool.setuptools]
 packages = ["agent_workflow"]
+include-package-data = false
 
 [tool.setuptools.dynamic]
 version = {attr = "agent_workflow.__version__"}
