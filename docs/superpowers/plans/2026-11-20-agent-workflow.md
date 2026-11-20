@@ -34,7 +34,7 @@
 ### Task 1: Python package, CLI surface, and safe asset catalog
 
 **Files:**
-- Create: `.gitignore`
+- Existing: `.gitignore` (created during repository setup)
 - Create: `.gitattributes`
 - Create: `pyproject.toml`
 - Create: `agent_workflow/__init__.py`
