@@ -52,20 +52,20 @@
 - The initial catalog contains `AGENTS.md` and `CLAUDE.md`; Task 4 adds the shared skill assets using the exact paths listed there.
 - CLI subcommands are `install`, `init`, `update`, `doctor`, `status`, `verify`, `remove`, and `version`.
 
-- [ ] **Step 1: Write failing CLI and asset-inventory tests**
+- [x] **Step 1: Write failing CLI and asset-inventory tests**
 
 Test `test_version_prints_package_version`, `test_unknown_command_returns_usage_error`, `test_asset_catalog_contains_required_roots` (assert both root instruction paths exist), `test_asset_paths_are_relative_and_unique`, and `test_all_assets_decode_as_utf8` using `unittest`.
 
-- [ ] **Step 2: Run tests and confirm expected failures**
+- [x] **Step 2: Run tests and confirm expected failures**
 
 Run: `python -m unittest tests.test_cli tests.test_assets -v`
 Expected: FAIL because the package entry point and asset catalog do not exist.
 
-- [ ] **Step 3: Implement the stdlib package and asset catalog**
+- [x] **Step 3: Implement the stdlib package and asset catalog**
 
 Declare Python `>=3.11`, console script `agent-workflow = agent_workflow.cli:main`, and no runtime dependencies. Make `python -m agent_workflow` use the same CLI entry point. The parser registers the eight named commands; behavior is filled in by later tasks.
 
-- [ ] **Step 4: Run package tests**
+- [x] **Step 4: Run package tests**
 
 Run: `python -m unittest tests.test_cli tests.test_assets -v`
 Expected: all tests pass.
@@ -227,7 +227,7 @@ Expected: all content contract checks pass.
 
 - [ ] **Step 1: Write failing end-to-end command tests**
 
-Test `test_init_to_verify_and_remove_flow`, `test_update_flow_preserves_custom_skill`, `test_new_software_example_checks_pass`, and `test_synthetic_data_pipeline_and_quality_checks_pass` using temporary target directories for lifecycle tests and direct example tests for the sample projects.
+Test `test_init_to_verify_and_remove_flow`, `test_update_flow_preserves_custom_skill`, `test_new_software_example_checks_pass`, `test_synthetic_data_pipeline_and_quality_checks_pass`, and `test_built_wheel_includes_hidden_agent_skills` using temporary target directories for lifecycle tests, direct example tests, and wheel-content inspection for the sample projects/package.
 
 - [ ] **Step 2: Run end-to-end tests and confirm expected failures**
 
