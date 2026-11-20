@@ -9,6 +9,8 @@ The CLI targets Python 3.11 and later on Windows, macOS, and Linux. The installe
 
 Claude Code loads imported content with `CLAUDE.md` and resolves relative imports from that file. Repository skills have their own discovery rules. [Claude Code instructions and memory](https://code.claude.com/docs/en/memory), [Claude Code skills](https://code.claude.com/docs/en/skills)
 
+In Claude Code project cloud threads, repository `.claude/skills/` files are not available. Enable the skills for the Claude account or use a supported local session. [Claude Code skills in cloud sessions](https://code.claude.com/docs/en/skills#skills-in-cowork-and-cloud-sessions)
+
 Codex builds its instruction chain from the repository root toward the current directory and scans applicable `.agents/skills/` directories. An `AGENTS.override.md` can take precedence at its directory level. [Codex custom instructions](https://developers.openai.com/codex/guides/agents-md), [Codex skills](https://developers.openai.com/codex/skills)
 
 ## OpenSpec and native controls

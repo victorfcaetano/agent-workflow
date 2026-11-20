@@ -56,6 +56,18 @@ class WorkflowAssetTests(unittest.TestCase):
             with self.subTest(term=term):
                 self.assertIn(term, work)
 
+    def test_review_only_tasks_do_not_mutate(self):
+        work = self.skill(WORK).lower()
+        for term in ("review-only", "read-only", "do not modify", "full `agent-workflow verify` suite"):
+            with self.subTest(term=term):
+                self.assertIn(term, work)
+
+    def test_local_change_archive_moves_entire_directory(self):
+        work = self.skill(WORK).lower()
+        self.assertIn("docs/agent-workflow/archive/", work)
+        self.assertIn("move the entire", work)
+        self.assertIn("directory, including supporting files", work)
+
     def test_onboarding_marks_evidence_confidence(self):
         onboarding = self.skill(ONBOARDING)
         for term in ("Verified", "Hypothesis", "Open question", "new project", "existing project"):
@@ -65,6 +77,7 @@ class WorkflowAssetTests(unittest.TestCase):
     def test_openspec_invocation_covers_both_hosts(self):
         work = self.skill(WORK)
         for term in ("/openspec-propose", "$openspec-propose", "openspec validate",
+                     "openspec instructions --change <id>",
                      "docs/agent-workflow/changes/", "fallback"):
             with self.subTest(term=term):
                 self.assertIn(term, work)
@@ -89,7 +102,8 @@ class WorkflowAssetTests(unittest.TestCase):
             path = DOCS / "compatibility.md"
             self.assertTrue(path.is_file())
             text = path.read_text(encoding="utf-8").lower()
-            for term in ("static", "live", "authenticated", "hooks", "opt-in", "permissions"):
+            for term in ("static", "live", "authenticated", "hooks", "opt-in", "permissions",
+                         "cloud threads", ".claude/skills/", "not available"):
                 self.assertIn(term, text)
         with self.subTest(surface="doctor"):
             with tempfile.TemporaryDirectory() as directory:
