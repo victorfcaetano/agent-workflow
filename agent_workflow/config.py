@@ -53,19 +53,18 @@ class Check:
 
     def executable(self, cwd: Path) -> str | None:
         program = self.command[0]
-        if os.path.dirname(program):
-            candidate = str(cwd / program)
-        elif os.name == "nt":
-            found = shutil.which(program)
-            candidate = os.path.abspath(found) if found else None
-        else:
-            candidate = program
-        # Windows can run batch files through a shell even when shell=False.
-        names = [program]
-        if candidate and os.name == "nt":
-            names.extend((candidate, os.path.realpath(candidate)))
-        if any(name.rstrip(" .").lower().endswith((".bat", ".cmd")) for name in names):
-            raise ValueError(f"Check {self.id!r} cannot run a batch command: {program!r}")
+        explicit_path = bool(os.path.dirname(program))
+        candidate = str(cwd / program) if explicit_path else program
+        if os.name == "nt":
+            if not explicit_path:
+                found = shutil.which(program)
+                candidate = os.path.abspath(found) if found else None
+            # Windows can run batch files through a shell even when shell=False.
+            names = [program]
+            if candidate:
+                names.extend((candidate, os.path.realpath(candidate)))
+            if any(name.rstrip(" .").lower().endswith((".bat", ".cmd")) for name in names):
+                raise ValueError(f"Check {self.id!r} cannot run a batch command: {program!r}")
         return candidate
 
 

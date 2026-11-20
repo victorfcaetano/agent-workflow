@@ -125,13 +125,11 @@ class VerifyTests(unittest.TestCase):
         self.assertTrue(self.marker.is_file())
         self.assertIn("unavailable", output)
 
-    def test_verify_rejects_batch_commands_before_any_execution(self):
-        programs = ["missing.CmD", "./tools/missing.BAT"]
-        if os.name == "nt":
-            (self.root / "batch-on-path.cmd").touch()
-            programs.append("batch-on-path")
+    @unittest.skipUnless(os.name == "nt", "Windows may run batch files through a shell")
+    def test_verify_rejects_windows_batch_commands_before_any_execution(self):
+        (self.root / "batch-on-path.cmd").touch()
         with patch.dict(os.environ, {"PATH": str(self.root), "PATHEXT": ".EXE;.BAT;.CMD"}):
-            for program in programs:
+            for program in ("missing.CmD", "./tools/missing.BAT", "batch-on-path"):
                 with self.subTest(program=program):
                     self.configure({"id": "first", "command": self.mark},
                                    {"id": "batch", "command": [program]})
@@ -139,6 +137,16 @@ class VerifyTests(unittest.TestCase):
                     self.assertEqual(code, 2)
                     self.assertIn("batch", message.lower())
                     self.assertFalse(self.marker.exists())
+
+    @unittest.skipUnless(os.name == "posix", "POSIX executable names may end in .cmd")
+    def test_posix_executable_named_batch_extension_is_allowed(self):
+        (self.root / "tool.cmd").symlink_to(sys.executable)
+        command = ["./tool.cmd", *self.mark[1:]]
+        self.configure({"id": "native", "command": command})
+        result, = verify(self.root)
+        self.assertTrue(result.passed, result.detail)
+        self.assertEqual(result.command, command)
+        self.assertTrue(self.marker.is_file())
 
     def test_verify_resolves_relative_executable_from_check_cwd(self):
         work = self.root / "work"
