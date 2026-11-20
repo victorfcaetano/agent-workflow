@@ -149,7 +149,7 @@ Create `agent-workflow.toml` plus context-index, architecture, domain, operation
 
 - [ ] **Step 4: Write failing verification tests**
 
-Test `test_verify_runs_argv_without_shell`, `test_verify_rejects_empty_or_non_string_command`, `test_verify_rejects_cwd_outside_project`, `test_verify_times_out_and_returns_failure`, `test_verify_aggregates_required_failures`, and `test_verify_returns_configuration_error_when_no_checks`.
+Test `test_verify_runs_argv_without_shell`, `test_verify_rejects_empty_or_non_string_command`, `test_verify_rejects_cwd_outside_project`, `test_verify_times_out_and_returns_failure`, `test_verify_aggregates_required_failures`, `test_verify_returns_configuration_error_when_no_checks`, `test_verify_rejects_batch_commands_before_any_execution`, `test_verify_resolves_relative_executable_from_check_cwd`, `test_verify_records_working_directory_removed_by_prior_check`, `test_verify_rejects_invalid_onboarding_before_execution`, and `test_nonregular_config_is_rejected_without_blocking` (POSIX only).
 
 - [ ] **Step 5: Run verification tests and confirm expected failures**
 
@@ -158,7 +158,7 @@ Expected: FAIL because TOML parsing and validation execution do not exist.
 
 - [ ] **Step 6: Implement TOML validation and bounded command execution**
 
-Use `tomllib` and `subprocess.run(argv, shell=False, cwd=resolved_project_path, timeout=..., check=False)` with output inherited by the terminal. Reject malformed records and out-of-root working directories before starting any command. Report each check's command, elapsed time, and result without buffering unbounded output.
+Use `tomllib` and `subprocess.run(argv, shell=False, cwd=resolved_project_path, timeout=..., check=False)` with output inherited by the terminal. Validate onboarding and every check before starting any command. Reject batch-file executables on Windows, resolve explicit relative executables against each validated check cwd, and record launch-time cwd loss as that check's failure while continuing. Reject malformed records and out-of-root working directories before starting any command. Report each check's command, elapsed time, and result without buffering unbounded output.
 
 - [ ] **Step 7: Run all CLI tests**
 
