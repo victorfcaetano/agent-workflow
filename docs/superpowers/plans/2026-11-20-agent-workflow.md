@@ -134,33 +134,33 @@ Expected: all lifecycle cases pass, including a second install with no filesyste
 - `verify(project_root: Path) -> list[CheckResult]` reads `agent-workflow.toml`; each `[[checks]]` record has `id`, non-empty `command: list[str]`, optional relative `cwd`, `timeout_seconds` in 1..3600, and `required` defaulting to true.
 - CLI exit codes: `0` for success, `1` for a failing required check, and `2` for invalid configuration or no registered checks.
 
-- [ ] **Step 1: Write failing bootstrap and diagnostic tests**
+- [x] **Step 1: Write failing bootstrap and diagnostic tests**
 
 Test `test_init_installs_and_creates_pending_context`, `test_init_preserves_existing_project_context`, `test_doctor_reports_missing_openspec_without_failure`, `test_doctor_reports_existing_lock_without_mutation`, `test_doctor_is_read_only`, and `test_status_reports_onboarding_pending`.
 
-- [ ] **Step 2: Run bootstrap tests and confirm expected failures**
+- [x] **Step 2: Run bootstrap tests and confirm expected failures**
 
 Run: `python -m unittest tests.test_init tests.test_doctor_status -v`
 Expected: FAIL because initialization and diagnostic functions do not exist.
 
-- [ ] **Step 3: Implement idempotent bootstrap and read-only diagnostics**
+- [x] **Step 3: Implement idempotent bootstrap and read-only diagnostics**
 
 Create `agent-workflow.toml` plus context-index, architecture, domain, operations, validation, and open-questions documents only when absent. Mark onboarding as `pending`; do not infer languages, facts, or architecture in the CLI. Detect `claude`, `codex`, and `openspec` with `shutil.which` only.
 
-- [ ] **Step 4: Write failing verification tests**
+- [x] **Step 4: Write failing verification tests**
 
 Test `test_verify_runs_argv_without_shell`, `test_verify_rejects_empty_or_non_string_command`, `test_verify_rejects_cwd_outside_project`, `test_verify_times_out_and_returns_failure`, `test_verify_aggregates_required_failures`, `test_verify_returns_configuration_error_when_no_checks`, `test_verify_rejects_windows_batch_commands_before_any_execution`, `test_posix_executable_named_batch_extension_is_allowed`, `test_verify_resolves_relative_executable_from_check_cwd`, `test_verify_records_working_directory_removed_by_prior_check`, `test_verify_rejects_invalid_onboarding_before_execution`, and `test_nonregular_config_is_rejected_without_blocking` (POSIX only).
 
-- [ ] **Step 5: Run verification tests and confirm expected failures**
+- [x] **Step 5: Run verification tests and confirm expected failures**
 
 Run: `python -m unittest tests.test_verify -v`
 Expected: FAIL because TOML parsing and validation execution do not exist.
 
-- [ ] **Step 6: Implement TOML validation and bounded command execution**
+- [x] **Step 6: Implement TOML validation and bounded command execution**
 
 Use `tomllib` and `subprocess.run(argv, shell=False, cwd=resolved_project_path, timeout=..., check=False)` with output inherited by the terminal. Validate onboarding and every check before starting any command. Reject batch-file executables on Windows, resolve explicit relative executables against each validated check cwd, and record launch-time cwd loss as that check's failure while continuing. Reject malformed records and out-of-root working directories before starting any command. Report each check's command, elapsed time, and result without buffering unbounded output.
 
-- [ ] **Step 7: Run all CLI tests**
+- [x] **Step 7: Run all CLI tests**
 
 Run: `python -m unittest tests.test_init tests.test_doctor_status tests.test_verify -v`
 Expected: all tests pass; no config or diagnostics command edits user-level agent settings.
