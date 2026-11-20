@@ -1,0 +1,7 @@
+[onboarding]
+status = "complete"
+
+[[checks]]
+id = "page-range-tests"
+command = ["python", "-m", "unittest", "discover", "-s", "tests", "-v"]
+timeout_seconds = 30

@@ -1,0 +1,6 @@
+order_id,customer_id,status,amount_cents
+O101,C001,paid,1299
+O102,C001,paid,701
+O103,C001,cancelled,550
+O104,C002,paid,1800
+O105,C003,cancelled,1999
