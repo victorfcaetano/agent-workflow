@@ -117,23 +117,28 @@ class CheckResult:
 
 def verify(project_root: Path) -> list[CheckResult]:
     root = _existing_project(project_root)
-    checks = configured_checks(root, load_config(root))
+    config = load_config(root)
+    onboarding_status(config)
+    checks = configured_checks(root, config)
     if not checks:
         raise ValueError(f"No registered checks in {CONFIG_PATH}")
     results = []
     for check in checks:
-        # An earlier check may have moved a directory after the config preflight.
-        cwd = check.working_directory(root)
         started = time.monotonic()
         code = None
         try:
-            process = subprocess.run(check.command, shell=False, cwd=cwd,
+            # An earlier check may have changed a directory or executable after preflight.
+            cwd = check.working_directory(root)
+            executable = check.executable(cwd)
+            if executable is None:
+                raise FileNotFoundError(f"Executable not found on PATH: {check.command[0]}")
+            process = subprocess.run([executable, *check.command[1:]], shell=False, cwd=cwd,
                                      timeout=check.timeout_seconds, check=False)
             code = process.returncode
             detail = f"exit {code}"
         except subprocess.TimeoutExpired:
             detail = f"timed out after {check.timeout_seconds}s"
-        except OSError as error:
+        except (OSError, ValueError) as error:
             detail = f"could not start: {error}"
         elapsed = time.monotonic() - started
         results.append(CheckResult(check.id, check.command, check.required, elapsed, code, detail))

@@ -1,11 +1,14 @@
 import json
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from agent_workflow.cli import main
 from agent_workflow.commands import verify
@@ -121,3 +124,64 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue(self.marker.is_file())
         self.assertIn("unavailable", output)
+
+    def test_verify_rejects_batch_commands_before_any_execution(self):
+        programs = ["missing.CmD", "./tools/missing.BAT"]
+        if os.name == "nt":
+            (self.root / "batch-on-path.cmd").touch()
+            programs.append("batch-on-path")
+        with patch.dict(os.environ, {"PATH": str(self.root), "PATHEXT": ".EXE;.BAT;.CMD"}):
+            for program in programs:
+                with self.subTest(program=program):
+                    self.configure({"id": "first", "command": self.mark},
+                                   {"id": "batch", "command": [program]})
+                    code, message = self.run_cli()
+                    self.assertEqual(code, 2)
+                    self.assertIn("batch", message.lower())
+                    self.assertFalse(self.marker.exists())
+
+    def test_verify_resolves_relative_executable_from_check_cwd(self):
+        work = self.root / "work"
+        tools = work / "tools"
+        tools.mkdir(parents=True)
+        if os.name == "nt":
+            shutil.copy2(Path(os.environ["SystemRoot"]) / "System32/fc.exe", tools / "compare.exe")
+            (work / "left").write_bytes(b"matching")
+            (work / "right").write_bytes(b"matching")
+            command = ["./tools/compare.exe", "/B", "left", "right"]
+        else:
+            shutil.copy2(shutil.which("true"), tools / "runner")
+            command = ["./tools/runner"]
+        self.configure({"id": "relative", "command": command, "cwd": work.name})
+        result, = verify(self.root)
+        self.assertTrue(result.passed, result.detail)
+        self.assertEqual(result.command, command)
+
+    def test_verify_records_working_directory_removed_by_prior_check(self):
+        (self.root / "obsolete").mkdir()
+        remove_cwd = [sys.executable, "-c", "from pathlib import Path; Path('obsolete').rmdir()"]
+        self.configure({"id": "prepare", "command": remove_cwd},
+                       {"id": "gone", "command": self.mark, "cwd": "obsolete"},
+                       {"id": "remaining", "command": self.mark})
+        results = verify(self.root)
+        self.assertEqual([(r.id, r.passed) for r in results],
+                         [("prepare", True), ("gone", False), ("remaining", True)])
+        self.assertIn("cwd", results[1].detail)
+        self.assertTrue(self.marker.exists())
+
+    def test_verify_rejects_invalid_onboarding_before_execution(self):
+        self.configure({"id": "first", "command": self.mark})
+        with self.config.open("a", encoding="utf-8") as stream:
+            stream.write("\n[onboarding]\nstatus = 10\n")
+        code, output = self.run_cli()
+        self.assertEqual(code, 2)
+        self.assertIn("onboarding", output)
+        self.assertFalse(self.marker.exists())
+
+    @unittest.skipUnless(os.name == "posix", "FIFOs require POSIX")
+    def test_nonregular_config_is_rejected_without_blocking(self):
+        os.mkfifo(self.config)
+        run = subprocess.run([sys.executable, "-m", "agent_workflow", "verify", str(self.root)],
+                             text=True, capture_output=True, timeout=5, check=False)
+        self.assertEqual(run.returncode, 2)
+        self.assertIn("regular file", run.stderr)
