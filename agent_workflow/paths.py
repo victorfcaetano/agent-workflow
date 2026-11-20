@@ -2,6 +2,7 @@
 
 import stat
 import tempfile
+from collections.abc import Callable
 from pathlib import Path, PureWindowsPath
 
 try:
@@ -37,9 +38,11 @@ def project_path(root: Path, name: str) -> Path:
     return target
 
 
-def atomic_write(path: Path, content: bytes) -> None:
+def atomic_write(path: Path, content: bytes, *, mode: int | None = None,
+                 before_replace: Callable[[], None] | None = None) -> None:
     """Replace a regular file without leaving a partially written payload."""
-    mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else None
+    if mode is None and path.exists():
+        mode = stat.S_IMODE(path.stat().st_mode)
     temporary = tempfile.NamedTemporaryFile(dir=path.parent, delete=False)
     sibling = Path(temporary.name)
     try:
@@ -47,6 +50,8 @@ def atomic_write(path: Path, content: bytes) -> None:
             temporary.write(content)
         if mode is not None:
             sibling.chmod(mode)
+        if before_replace is not None:
+            before_replace()
         sibling.replace(path)
     finally:
         sibling.unlink(missing_ok=True)

@@ -1,4 +1,5 @@
 import os
+import stat
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -29,6 +30,28 @@ class LifecycleTests(unittest.TestCase):
         assets = patch("agent_workflow.lifecycle.list_assets", return_value=self.assets)
         assets.start()
         self.addCleanup(assets.stop)
+
+    def project_bytes(self):
+        return {p.relative_to(self.root): p.read_bytes() if p.is_file() else None
+                for p in self.root.rglob("*")}
+
+    def test_stale_lock_blocks_noop_install_and_update(self):
+        install(self.root)
+        (self.root / ".agent-workflow.lock").write_bytes(b"prior operation")
+        before = self.project_bytes()
+        for operation in (install, update):
+            with self.subTest(operation=operation.__name__):
+                with self.assertRaisesRegex(ValueError, "lock"):
+                    operation(self.root)
+                self.assertEqual(self.project_bytes(), before)
+
+    def test_stale_lock_blocks_remove_without_manifest(self):
+        (self.root / ".agent-workflow.lock").write_bytes(b"prior operation")
+        self.agents.write_bytes(b"Unowned instructions")
+        before = self.project_bytes()
+        with self.assertRaisesRegex(ValueError, "lock"):
+            remove(self.root)
+        self.assertEqual(self.project_bytes(), before)
 
     def test_install_is_idempotent(self):
         install(self.root)
@@ -72,6 +95,42 @@ class LifecycleTests(unittest.TestCase):
         remove(self.root)
         self.assertFalse(self.skill.exists())
 
+    def test_external_edit_between_replacement_steps_is_preserved(self):
+        install(self.root)
+        before = self.project_bytes()
+        self.assets["AGENTS.md"] = BLOCK.replace(b"Original", b"Updated")
+        self.assets[SKILL] = b"Updated skill"
+        replace = Path.replace
+
+        def edit_after_first_replacement(sibling, destination):
+            result = replace(sibling, destination)
+            if destination == self.agents and self.agents.read_bytes() == self.assets["AGENTS.md"]:
+                self.skill.write_bytes(b"Concurrent edit")
+            return result
+
+        with patch.object(Path, "replace", edit_after_first_replacement):
+            with self.assertRaises(ValueError):
+                update(self.root)
+        before[Path(SKILL)] = b"Concurrent edit"
+        self.assertEqual(self.project_bytes(), before)
+
+    def test_external_edit_between_deletions_is_preserved(self):
+        install(self.root)
+        before = self.project_bytes()
+        unlink = Path.unlink
+
+        def edit_after_first_deletion(path, *args, **kwargs):
+            result = unlink(path, *args, **kwargs)
+            if path == self.skill:
+                self.agents.write_bytes(b"Concurrent edit")
+            return result
+
+        with patch.object(Path, "unlink", edit_after_first_deletion):
+            with self.assertRaises(ValueError):
+                remove(self.root)
+        before[Path("AGENTS.md")] = b"Concurrent edit"
+        self.assertEqual(self.project_bytes(), before)
+
     def test_update_refreshes_managed_block_without_losing_user_text(self):
         install(self.root)
         self.agents.write_bytes(b"prefix\r\n" + BLOCK + b"suffix")
@@ -113,12 +172,12 @@ class LifecycleTests(unittest.TestCase):
         writing = Event()
         proceed = Event()
 
-        def pause_first_write(path, payload):
+        def pause_first_write(path, payload, **kwargs):
             if path == self.agents and payload == incoming:
                 writing.set()
                 if not proceed.wait(10):
                     raise TimeoutError("Timed out waiting for concurrent remove")
-            atomic_write(path, payload)
+            atomic_write(path, payload, **kwargs)
 
         with patch("agent_workflow.lifecycle.atomic_write", side_effect=pause_first_write):
             with ThreadPoolExecutor(max_workers=1) as executor:
@@ -148,6 +207,48 @@ class LifecycleTests(unittest.TestCase):
         remove(self.root)
         self.assertEqual(set(self.root.iterdir()), {self.root / ".agents"})
         self.assertEqual(list((self.root / ".agents").iterdir()), [])
+
+    def test_directory_prune_failure_restores_manifest_and_files(self):
+        install(self.root)
+        before = self.project_bytes()
+        rmdir = Path.rmdir
+
+        def fail_after_child_is_removed(path):
+            if path == self.skill.parent.parent:
+                self.assertFalse(self.skill.parent.exists())
+                raise PermissionError("Injected directory prune failure")
+            rmdir(path)
+
+        with patch.object(Path, "rmdir", fail_after_child_is_removed):
+            with self.assertRaisesRegex(PermissionError, "prune failure"):
+                remove(self.root)
+        self.assertEqual(self.project_bytes(), before)
+        remove(self.root)
+        self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_rollback_restores_original_file_mode(self):
+        install(self.root)
+        self.skill.chmod(0o444 if os.name == "nt" else 0o754)
+        before = self.project_bytes()
+        unlink = Path.unlink
+
+        def fail_after_skill_deletion(path, *args, **kwargs):
+            if path == self.agents:
+                self.assertFalse(self.skill.exists())
+                raise PermissionError("Injected removal failure")
+            if path == self.skill and os.name == "nt":
+                # Allow the test to inject a successful deletion of a read-only file.
+                path.chmod(stat.S_IWRITE)
+            return unlink(path, *args, **kwargs)
+
+        with patch.object(Path, "unlink", fail_after_skill_deletion):
+            with self.assertRaisesRegex(PermissionError, "removal failure"):
+                remove(self.root)
+        self.assertEqual(self.project_bytes(), before)
+        if os.name == "nt":
+            self.assertTrue(self.skill.stat().st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+        else:
+            self.assertEqual(stat.S_IMODE(self.skill.stat().st_mode), 0o754)
 
     def test_remove_preserves_user_text_around_unmodified_block(self):
         install(self.root)

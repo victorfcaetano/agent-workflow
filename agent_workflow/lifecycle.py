@@ -3,7 +3,10 @@
 import errno
 import hashlib
 import re
+import stat
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 
 from . import __version__
@@ -56,60 +59,65 @@ class _Changes:
                 break
             self.new_dirs.add(parent.relative_to(self.root).as_posix())
 
-    def apply(self, prune: set[str]) -> None:
-        if not self.pending:
-            return
-        lock = project_path(self.root, LOCK_PATH)
-        try:
-            handle = lock.open("xb")
-        except FileExistsError as error:
-            raise ValueError(f"Project lock exists at {lock}. Check for another running operation.") from error
-        try:
-            with handle:
-                self._apply_locked(prune)
-        finally:
-            lock.unlink()
+    def _check(self, name: str, expected: bytes | None) -> None:
+        if _read(project_path(self.root, name)) != expected:
+            raise ValueError(f"Project changed during operation: {name}. Retry.")
 
-    def _apply_locked(self, prune: set[str]) -> None:
+    def _change_file(self, name: str, expected: bytes | None, replacement: bytes | None,
+                     *, mode: int | None = None) -> None:
+        path = project_path(self.root, name)
+        if replacement is None:
+            self._check(name, expected)
+            path.unlink()
+        else:
+            atomic_write(path, replacement, mode=mode, before_replace=partial(self._check, name, expected))
+
+    def apply(self, prune: set[str]) -> None:
         for name, previous in self.original.items():
-            if _read(project_path(self.root, name)) != previous:
-                raise ValueError(f"Project changed while planning operation: {name}. Retry.")
+            self._check(name, previous)
         created = []
         applied = []
+        deleted_modes = {}
+        pruned = []
         try:
             for name in sorted(self.new_dirs, key=lambda d: (d.count("/"), d)):
                 path = project_path(self.root, name)
                 path.mkdir()
                 created.append(path)
             for name, content in self.pending.items():
-                path = project_path(self.root, name)
                 if content is None:
-                    path.unlink()
-                else:
-                    atomic_write(path, content)
+                    path = project_path(self.root, name)
+                    deleted_modes[name] = stat.S_IMODE(path.stat().st_mode)
+                self._change_file(name, self.original[name], content)
                 applied.append(name)
+            for name in sorted(prune, key=lambda d: (-d.count("/"), d)):
+                mode = _prune_empty(project_path(self.root, name))
+                if mode is not None:
+                    pruned.append((name, mode))
         except (OSError, ValueError):
+            for name, mode in reversed(pruned):
+                directory = project_path(self.root, name)
+                if not directory.exists():
+                    directory.mkdir(mode=mode)
+                    directory.chmod(mode)
             for name in reversed(applied):
                 path = project_path(self.root, name)
                 if _read(path) == self.pending[name]:
-                    previous = self.original[name]
-                    if previous is None:
-                        path.unlink()
-                    else:
-                        atomic_write(path, previous)
+                    self._change_file(name, self.pending[name], self.original[name], mode=deleted_modes.get(name))
             for path in reversed(created):
                 _prune_empty(path)
             raise
-        for name in sorted(prune, key=lambda d: (-d.count("/"), d)):
-            _prune_empty(project_path(self.root, name))
 
 
-def _prune_empty(path: Path) -> None:
+def _prune_empty(path: Path) -> int | None:
     try:
+        mode = stat.S_IMODE(path.stat().st_mode)
         path.rmdir()
+        return mode
     except OSError as error:
         if error.errno not in {errno.ENOENT, errno.ENOTEMPTY, errno.EEXIST, errno.ENOTDIR}:
             raise
+        return None
 
 
 def _block_span(content: bytes):
@@ -184,8 +192,22 @@ def _install_asset(changes: _Changes, manifest: Manifest, report: OperationRepor
                                  "block" if shared else "file", created)
 
 
-def _deploy(project_root: Path, updating: bool) -> OperationReport:
+@contextmanager
+def _locked_project(project_root: Path):
     changes = _Changes(project_root)
+    lock = project_path(changes.root, LOCK_PATH)
+    try:
+        handle = lock.open("xb")
+    except FileExistsError as error:
+        raise ValueError(f"Project lock exists at {lock}. Inspect it before retrying.") from error
+    try:
+        with handle:
+            yield changes
+    finally:
+        lock.unlink()
+
+
+def _deploy(changes: _Changes, updating: bool) -> OperationReport:
     previous = changes.read(MANIFEST_PATH)
     if previous is None and updating:
         raise ValueError("No installed workflow. Run agent-workflow install first.")
@@ -206,15 +228,21 @@ def _deploy(project_root: Path, updating: bool) -> OperationReport:
 
 
 def install(project_root: Path) -> OperationReport:
-    return _deploy(project_root, updating=False)
+    with _locked_project(project_root) as changes:
+        return _deploy(changes, updating=False)
 
 
 def update(project_root: Path) -> OperationReport:
-    return _deploy(project_root, updating=True)
+    with _locked_project(project_root) as changes:
+        return _deploy(changes, updating=True)
 
 
 def remove(project_root: Path) -> OperationReport:
-    changes = _Changes(project_root)
+    with _locked_project(project_root) as changes:
+        return _remove(changes)
+
+
+def _remove(changes: _Changes) -> OperationReport:
     previous = changes.read(MANIFEST_PATH)
     report = OperationReport()
     if previous is None:
