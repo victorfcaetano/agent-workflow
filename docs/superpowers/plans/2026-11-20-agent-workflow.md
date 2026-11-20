@@ -81,6 +81,7 @@ Expected: all tests pass.
 - Modify: `agent_workflow/cli.py`
 - Test: `tests/test_manifest.py`
 - Test: `tests/test_lifecycle.py`
+- Test: `tests/test_paths.py`
 
 **Interfaces:**
 - `Manifest.load(project_root: Path) -> Manifest | None`
@@ -94,7 +95,7 @@ Expected: all tests pass.
 
 - [ ] **Step 1: Write failing lifecycle tests**
 
-Add `test_install_is_idempotent`, `test_install_preserves_existing_instruction_text`, `test_install_does_not_claim_unowned_files`, `test_manifest_invalid_json_fails_before_writing`, `test_update_replaces_unchanged_managed_asset`, `test_update_refreshes_managed_block_without_losing_user_text`, `test_update_preserves_modified_asset_and_writes_conflict`, `test_update_preserves_modified_managed_block`, `test_remove_deletes_only_unchanged_owned_files`, `test_remove_preserves_user_text_around_unmodified_block`, `test_remove_keeps_modified_and_unowned_files`, `test_manifest_path_traversal_is_rejected`, a controlled overlapping `update`/`remove` regression that proves serialization, `test_stale_lock_blocks_noop_install_and_update`, `test_stale_lock_blocks_remove_without_manifest`, `test_directory_prune_failure_restores_manifest_and_files`, `test_external_edit_between_replacement_steps_is_preserved`, and `test_rollback_restores_original_file_mode` (skip mode assertion on Windows).
+Add `test_install_is_idempotent`, `test_install_preserves_existing_instruction_text`, `test_install_does_not_claim_unowned_files`, `test_manifest_invalid_json_fails_before_writing`, `test_update_replaces_unchanged_managed_asset`, `test_update_refreshes_managed_block_without_losing_user_text`, `test_update_preserves_modified_asset_and_writes_conflict`, `test_update_preserves_modified_managed_block`, `test_remove_deletes_only_unchanged_owned_files`, `test_remove_preserves_user_text_around_unmodified_block`, `test_remove_keeps_modified_and_unowned_files`, `test_manifest_path_traversal_is_rejected`, a controlled overlapping `update`/`remove` regression that proves serialization, `test_stale_lock_blocks_noop_install_and_update`, `test_stale_lock_blocks_remove_without_manifest`, `test_directory_prune_failure_restores_manifest_and_files`, `test_external_edit_between_replacement_steps_is_preserved`, `test_rollback_restores_original_file_mode` (skip mode assertion on Windows), `test_rollback_conflict_preserves_edit_and_restores_other_files`, and `test_atomic_write_removes_readonly_staged_temp`.
 
 - [ ] **Step 2: Run lifecycle tests and confirm expected failures**
 
