@@ -187,24 +187,24 @@ Expected: all tests pass; no config or diagnostics command edits user-level agen
 - Subagent guidance requires independence, bounded tasks, isolation for parallel writes, context/cost consideration, coordinator integration, and risk-based independent review.
 - `doctor` and compatibility docs distinguish static artifact support from live semantic verification; project hooks remain opt-in and untouched.
 
-- [ ] **Step 1: Write failing workflow-asset checks**
+- [x] **Step 1: Write failing workflow-asset checks**
 
 Test `test_root_adapters_share_canonical_workflow`, `test_skills_have_concise_frontmatter_descriptions`, `test_work_skill_covers_complexity_and_autonomy`, `test_review_only_tasks_do_not_mutate`, `test_onboarding_marks_evidence_confidence`, `test_openspec_invocation_covers_both_hosts`, `test_local_change_archive_moves_entire_directory`, `test_context_docs_are_separate_and_indexed`, and `test_compatibility_limits_are_explicit`.
 
-- [ ] **Step 2: Run asset tests and confirm expected failures**
+- [x] **Step 2: Run asset tests and confirm expected failures**
 
 Run: `python -m unittest tests.test_workflow_assets -v`
 Expected: FAIL because workflow instructions and project context assets are not authored.
 
-- [ ] **Step 3: Author shared and host-specific instruction assets**
+- [x] **Step 3: Author shared and host-specific instruction assets**
 
 Keep root instructions under 100 lines. Use concise skill descriptions with focused files and scripts for deeper procedures. Onboard only when requested or materially needed; let ordinary quick changes stay quick. A review-only request must remain read-only, and small changes use focused checks rather than the entire configured suite unless impact or project policy calls for it.
 
-- [ ] **Step 4: Document supported integrations and extension points**
+- [x] **Step 4: Document supported integrations and extension points**
 
 Document native Claude Code/Codex discovery (including Claude cloud project-thread limitations), hooks/permission limits, OpenSpec and Matt Pocock evaluation, Python/SQL/web domain skills, project TOML checks, and the CI compatibility boundary. Include source URLs reviewed in the design.
 
-- [ ] **Step 5: Run workflow-asset tests**
+- [x] **Step 5: Run workflow-asset tests**
 
 Run: `python -m unittest tests.test_workflow_assets -v`
 Expected: all content contract checks pass.
