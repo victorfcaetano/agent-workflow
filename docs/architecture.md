@@ -16,6 +16,8 @@ Agent Workflow consists of a Python CLI, a small instruction router, and two ski
 
 `update` replaces unchanged managed content. If managed content was modified, it preserves the installed copy and writes the incoming candidate under `.agent-workflow/updates/` for review. `remove` removes unchanged managed content and keeps project edits. Lifecycle mutations use `.agent-workflow.lock` to serialize writes. If a process is interrupted and leaves the file, use `doctor` to locate it and inspect the operation and project state before clearing the lock.
 
+Manifest paths are restricted to the current package asset catalog and an explicit retired-path list, so a manifest cannot claim a README or other project file. If rollback cannot restore the original snapshot, the CLI saves recoverable original bytes and modes in `.agent-workflow/recovery/rollback-*.json`; `doctor` reports these artifacts for manual inspection.
+
 ## Work and continuity
 
 The root routers point to the project context index and skill names. Skills load their procedures when relevant. A small repair can go straight from inspection to a focused check. Medium work gets a short plan and checkpoints. Changes to public behavior, business rules, architecture, or multiple components get requirements, acceptance checks, and a durable change record.

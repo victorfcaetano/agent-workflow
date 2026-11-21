@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .config import CONFIG_PATH, configured_checks, load_config, onboarding_status
-from .lifecycle import OperationReport, _locked_project, install
+from .assets_manifest import list_assets
+from .lifecycle import OperationReport, _owned_span, install
 from .manifest import LOCK_PATH, MANIFEST_PATH, Manifest
 from .paths import project_path
 from .project_templates import CONTEXT_DIR, INIT_FILES
@@ -21,14 +22,7 @@ def initialize(project_root: Path) -> OperationReport:
         path = project_path(root, name)
         if path.exists() and not path.is_file():
             raise ValueError(f"Expected a project file at {path}")
-    report = install(root)
-    with _locked_project(root) as changes:
-        for name, content in INIT_FILES.items():
-            if changes.read(name) is None:
-                changes.set(name, content.encode("utf-8"))
-                report.changed.append(name)
-        changes.apply(set())
-    return report
+    return install(root, extra_files=INIT_FILES)
 
 
 @dataclass(frozen=True)
@@ -75,18 +69,59 @@ def doctor(project_root: Path) -> list[Diagnostic]:
     for name in ("claude", "codex", "openspec"):
         executable = shutil.which(name)
         diagnostics.append(Diagnostic("info", f"{name}: {executable or 'not found on PATH'}"))
-    for name in ("AGENTS.md", "CLAUDE.md", ".agents/skills", ".claude/skills"):
-        try:
-            path = project_path(root, name)
-            present = path.is_file() if name.endswith(".md") else path.is_dir()
-            diagnostics.append(Diagnostic("info", f"{name}: {'present' if present else 'missing'}"))
-        except (OSError, ValueError) as error:
-            diagnostics.append(Diagnostic("error", str(error)))
+    manifest = None
     try:
         manifest = Manifest.load(root)
         diagnostics.append(Diagnostic("info", f"{MANIFEST_PATH}: {'installed' if manifest else 'missing'}"))
     except (ValueError, OSError) as error:
         diagnostics.append(Diagnostic("error", f"{MANIFEST_PATH}: {error}"))
+    partial = False
+    found_workflow_location = False
+    for name in list_assets():
+        try:
+            path = project_path(root, name)
+            present = path.is_file()
+            entry = manifest.files.get(name) if manifest is not None else None
+            if present and name not in {"AGENTS.md", "CLAUDE.md"}:
+                found_workflow_location = True
+            if entry is None:
+                if present:
+                    diagnostics.append(Diagnostic("info", f"{name}: unmanaged project file"))
+                else:
+                    diagnostics.append(Diagnostic("info", f"{name}: missing"))
+                    if manifest is not None:
+                        partial = True
+                if name.startswith((".agents/skills/agent-workflow/", ".agents/skills/agent-workflow-onboarding/",
+                                   ".claude/skills/agent-workflow/", ".claude/skills/agent-workflow-onboarding/")):
+                    if path.parent.is_dir():
+                        found_workflow_location = True
+                continue
+            if not present:
+                diagnostics.append(Diagnostic("warning", f"{name}: managed asset is missing"))
+                partial = True
+            elif _owned_span(entry, path.read_bytes()) is None:
+                diagnostics.append(Diagnostic("warning", f"{name}: managed content was modified; preserved"))
+            else:
+                diagnostics.append(Diagnostic("info", f"{name}: installed and unchanged"))
+        except (OSError, ValueError) as error:
+            diagnostics.append(Diagnostic("error", f"{name}: {error}"))
+            partial = manifest is not None or partial
+    if manifest is None and found_workflow_location:
+        diagnostics.append(Diagnostic(
+            "warning", "Workflow files or skill locations exist without an ownership manifest; setup may be partial or unmanaged."
+        ))
+    elif partial:
+        diagnostics.append(Diagnostic("warning", "Workflow installation is partial; inspect missing managed assets."))
+    try:
+        recovery_dir = project_path(root, ".agent-workflow/recovery")
+        if recovery_dir.is_dir():
+            artifacts = sorted(recovery_dir.glob("rollback-*.json"))
+            for artifact in artifacts:
+                diagnostics.append(Diagnostic(
+                    "warning", f"Rollback recovery artifact needs manual inspection: {artifact.relative_to(root).as_posix()}"
+                ))
+    except (OSError, ValueError) as error:
+        diagnostics.append(Diagnostic("error", f".agent-workflow/recovery: {error}"))
     try:
         if project_path(root, CONFIG_PATH).exists():
             config = load_config(root)

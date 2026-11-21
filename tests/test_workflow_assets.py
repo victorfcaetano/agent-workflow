@@ -107,6 +107,8 @@ class WorkflowAssetTests(unittest.TestCase):
             for term in ("static", "live", "authenticated", "hooks", "opt-in", "permissions",
                          "cloud threads", ".claude/skills/", "not available"):
                 self.assertIn(term, text)
+            self.assertIn("2.1.277", text)
+            self.assertIn("older clients", text)
         with self.subTest(surface="doctor"):
             with tempfile.TemporaryDirectory() as directory:
                 messages = "\n".join(item.message for item in doctor(Path(directory))).lower()

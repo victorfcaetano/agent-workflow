@@ -47,6 +47,8 @@ def main(argv: list[str] | None = None) -> int:
             report = operations[args.command](args.project)
         except (ValueError, OSError) as error:
             print(f"agent-workflow: {error}", file=sys.stderr)
+            for note in getattr(error, "__notes__", ()):
+                print(f"agent-workflow: recovery: {note}", file=sys.stderr)
             return 1
         for path in report.changed:
             print(f"Changed {path}")
@@ -76,4 +78,6 @@ def main(argv: list[str] | None = None) -> int:
         return int(any(result.required and not result.passed for result in results))
     except (ValueError, OSError) as error:
         print(f"agent-workflow: {error}", file=sys.stderr)
+        for note in getattr(error, "__notes__", ()):
+            print(f"agent-workflow: recovery: {note}", file=sys.stderr)
         return 2

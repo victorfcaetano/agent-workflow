@@ -1,7 +1,7 @@
 import unittest
 from pathlib import PurePosixPath, PureWindowsPath
 
-from agent_workflow.assets_manifest import list_assets
+from agent_workflow.assets_manifest import asset_paths, list_assets
 
 
 class AssetTests(unittest.TestCase):
@@ -21,6 +21,10 @@ class AssetTests(unittest.TestCase):
                 self.assertEqual(path.as_posix(), name)
                 self.assertNotIn(name.casefold(), seen)
                 seen.add(name.casefold())
+
+    def test_asset_inventory_has_no_duplicate_paths(self):
+        paths = asset_paths()
+        self.assertEqual(len(paths), len(set(paths)))
 
     def test_all_assets_decode_as_utf8(self):
         for name, content in list_assets().items():

@@ -9,6 +9,8 @@ The CLI targets Python 3.11 and later on Windows, macOS, and Linux. The installe
 
 Claude Code loads imported content with `CLAUDE.md` and resolves relative imports from that file. Repository skills have their own discovery rules. [Claude Code instructions and memory](https://code.claude.com/docs/en/memory), [Claude Code skills](https://code.claude.com/docs/en/skills)
 
+Claude Code added native `AGENTS.md` discovery in **2.1.277**. It is a fallback when a folder has no `CLAUDE.md`, so Agent Workflow keeps a small `CLAUDE.md` adapter that imports `@AGENTS.md`. This also supports older clients, and remains the compatibility path for provider sessions where native support may arrive later. [Claude Code 2.1.277 release](https://github.com/anthropics/claude-code/releases/tag/v2.1.277)
+
 In Claude Code project cloud threads, repository `.claude/skills/` files are not available. Enable the skills for the Claude account or use a supported local session. [Claude Code skills in cloud sessions](https://code.claude.com/docs/en/skills#skills-in-cowork-and-cloud-sessions)
 
 Codex builds its instruction chain from the repository root toward the current directory and scans applicable `.agents/skills/` directories. An `AGENTS.override.md` can take precedence at its directory level. [Codex custom instructions](https://developers.openai.com/codex/guides/agents-md), [Codex skills](https://developers.openai.com/codex/skills)
@@ -23,6 +25,6 @@ Agent Workflow relies on native permissions, sandboxing, and organizational poli
 
 ## What verification covers
 
-`agent-workflow doctor` performs static diagnostics. It reports `claude`, `codex`, and `openspec` on `PATH`, checks expected instruction and skill locations, and inspects the installer manifest and project check configuration. A missing executable can be expected when a host runs in a separate client environment. CI can exercise the CLI, packaged files, and expected discovery layout on each operating system.
+`agent-workflow doctor` performs read-only static diagnostics. It reports `claude`, `codex`, and `openspec` on `PATH`, checks each expected instruction and skill file against the ownership manifest, and inspects project check configuration. It distinguishes unchanged managed assets, modified assets, unmanaged root instructions, and missing files. If a failed rollback could not restore an original file, it saves the original bytes and mode in `.agent-workflow/recovery/rollback-*.json`; inspect that artifact and the working tree before restoring it manually. A missing executable can be expected when a host runs in a separate client environment. CI can exercise the CLI, packaged files, and expected discovery layout on each operating system.
 
 Interpretation, actual skill invocation, host policy, and adherence to workflow instructions require a live, authenticated session in the target host. To check a specific environment, open the repository in that client, confirm the expected instruction source and skill discovery, and run a small reversible task that exercises the workflow and its validation. Record the client or release and what you observed. Static checks establish the file contract only.

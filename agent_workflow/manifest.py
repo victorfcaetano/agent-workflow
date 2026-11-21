@@ -5,6 +5,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path, PurePosixPath
 
+from .assets_manifest import managed_paths
 from .paths import project_path
 
 MANIFEST_PATH = ".agent-workflow/manifest.json"
@@ -65,6 +66,8 @@ class Manifest:
             if not isinstance(item, dict) or set(item) != set(Entry.__dataclass_fields__):
                 raise ValueError("Malformed manifest file entry")
             entry = Entry(**item)
+            if not isinstance(entry.path, str) or entry.path not in managed_paths():
+                raise ValueError(f"Manifest cannot own an unrecognized asset path: {entry.path!r}")
             project_path(root, entry.path)
             check_payload_name(entry.path)
             key = entry.path.casefold()

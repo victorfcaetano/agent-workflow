@@ -3,7 +3,7 @@ import stat
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from threading import Event
@@ -16,7 +16,7 @@ from agent_workflow.paths import atomic_write
 
 
 BLOCK = b"<!-- agent-workflow:begin -->\nOriginal map\n<!-- agent-workflow:end -->\n"
-SKILL = ".agents/skills/work/SKILL.md"
+SKILL = ".agents/skills/agent-workflow/SKILL.md"
 
 
 class LifecycleTests(unittest.TestCase):
@@ -248,6 +248,85 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(self.project_bytes(), before)
         remove(self.root)
         self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_rollback_recreates_pruned_directory_and_restores_snapshot_after_one_failure(self):
+        install(self.root)
+        before = self.project_bytes()
+        rmdir = Path.rmdir
+        mkdir = Path.mkdir
+
+        def fail_after_child_is_removed(path):
+            if path == self.skill.parent.parent:
+                raise PermissionError("Injected directory prune failure")
+            rmdir(path)
+
+        failed_restore = False
+
+        def fail_first_restore(path, *args, **kwargs):
+            nonlocal failed_restore
+            if path == self.skill.parent and not path.exists() and not failed_restore:
+                failed_restore = True
+                raise PermissionError("Injected directory restore failure")
+            return mkdir(path, *args, **kwargs)
+
+        with patch.object(Path, "rmdir", fail_after_child_is_removed), \
+                patch.object(Path, "mkdir", fail_first_restore):
+            with self.assertRaisesRegex(PermissionError, "directory prune failure"):
+                remove(self.root)
+        self.assertTrue(failed_restore)
+        self.assertEqual(self.project_bytes(), before)
+
+    def test_rollback_persists_recovery_artifact_when_restoration_is_blocked(self):
+        install(self.root)
+        expected_skill = self.skill.read_bytes()
+        rmdir = Path.rmdir
+        mkdir = Path.mkdir
+
+        def fail_after_child_is_removed(path):
+            if path == self.skill.parent.parent:
+                raise PermissionError("Injected directory prune failure")
+            rmdir(path)
+
+        def block_restore(path, *args, **kwargs):
+            if path == self.skill.parent and not path.exists():
+                raise PermissionError("Injected persistent restore failure")
+            return mkdir(path, *args, **kwargs)
+
+        with patch.object(Path, "rmdir", fail_after_child_is_removed), \
+                patch.object(Path, "mkdir", block_restore):
+            with self.assertRaisesRegex(PermissionError, "directory prune failure") as raised:
+                remove(self.root)
+        recovery_dir = self.root / ".agent-workflow/recovery"
+        artifacts = list(recovery_dir.glob("rollback-*.json"))
+        self.assertEqual(len(artifacts), 1)
+        import base64
+        import json
+        record = json.loads(artifacts[0].read_text(encoding="utf-8"))
+        saved = next(item for item in record["files"] if item["path"] == SKILL)
+        self.assertEqual(base64.b64decode(saved["content_base64"]), expected_skill)
+        self.assertIn(str(artifacts[0]), "\n".join(getattr(raised.exception, "__notes__", [])))
+
+    def test_cli_reports_recovery_artifact_path(self):
+        install(self.root)
+        rmdir = Path.rmdir
+        mkdir = Path.mkdir
+
+        def fail_during_prune(path):
+            if path == self.skill.parent.parent:
+                raise PermissionError("Injected directory prune failure")
+            return rmdir(path)
+
+        def block_skill_restore(path, *args, **kwargs):
+            if path == self.skill.parent and not path.exists():
+                raise PermissionError("Injected persistent restore failure")
+            return mkdir(path, *args, **kwargs)
+
+        stderr = StringIO()
+        with patch.object(Path, "rmdir", fail_during_prune), \
+                patch.object(Path, "mkdir", block_skill_restore), redirect_stderr(stderr):
+            self.assertEqual(main(["remove", str(self.root)]), 1)
+        self.assertIn("rollback-", stderr.getvalue())
+        self.assertIn("recovery", stderr.getvalue().lower())
 
     def test_rollback_restores_original_file_mode(self):
         install(self.root)

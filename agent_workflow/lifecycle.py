@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import base64
 import errno
 import hashlib
+import json
 import re
+import secrets
 import stat
+from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import partial
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from . import __version__
 from .assets_manifest import list_assets
@@ -97,19 +101,91 @@ class _Changes:
                 if mode is not None:
                     pruned.append((name, mode))
         except (OSError, ValueError) as operation_error:
-            for name, mode in reversed(pruned):
-                directory = project_path(self.root, name)
-                if not directory.exists():
-                    directory.mkdir(mode=mode)
-                    directory.chmod(mode)
+            pruned_modes = dict(pruned)
+            for name, mode in sorted(pruned, key=lambda item: (item[0].count("/"), item[0])):
+                try:
+                    self._restore_directory(name, mode)
+                except (OSError, ValueError) as restore_error:
+                    operation_error.add_note(f"Could not restore directory {name}: {restore_error}")
+            failed_restores = []
             for name in reversed(applied):
                 try:
+                    self._ensure_pruned_parents(name, pruned_modes)
+                    if _read(project_path(self.root, name)) != self.pending[name]:
+                        operation_error.add_note(
+                            f"Could not restore {name}: current file differs from the transaction snapshot."
+                        )
+                        continue
                     self._change_file(name, self.pending[name], self.original[name], mode=deleted_modes.get(name))
                 except (OSError, ValueError) as restore_error:
                     operation_error.add_note(f"Could not restore {name}: {restore_error}")
+                    try:
+                        current = _read(project_path(self.root, name))
+                    except (OSError, ValueError):
+                        current = object()
+                    if current == self.pending[name]:
+                        failed_restores.append({
+                            "path": name,
+                            "mode": deleted_modes.get(name),
+                            "content_base64": (base64.b64encode(self.original[name]).decode("ascii")
+                                               if self.original[name] is not None else None),
+                        })
+            if failed_restores:
+                try:
+                    recovery = _persist_recovery(self.root, failed_restores)
+                    operation_error.add_note(f"Original files needing manual recovery were saved to {recovery}")
+                except (OSError, ValueError) as recovery_error:
+                    operation_error.add_note(f"Could not save rollback recovery data: {recovery_error}")
             for path in reversed(created):
-                _prune_empty(path)
+                try:
+                    _prune_empty(path)
+                except OSError as cleanup_error:
+                    operation_error.add_note(f"Could not remove newly created directory {path}: {cleanup_error}")
             raise
+
+    def _restore_directory(self, name: str, mode: int) -> None:
+        directory = project_path(self.root, name)
+        if directory.exists():
+            if not directory.is_dir():
+                raise ValueError(f"Expected a directory at {directory}")
+            return
+        last_error = None
+        for _ in range(2):
+            try:
+                directory.mkdir(mode=mode)
+                directory.chmod(mode)
+                return
+            except FileExistsError:
+                if directory.is_dir():
+                    return
+                raise
+            except OSError as error:
+                last_error = error
+                if directory.is_dir():
+                    return
+        raise last_error
+
+    def _ensure_pruned_parents(self, name: str, pruned_modes: dict[str, int]) -> None:
+        parents = list(PurePosixPath(name).parents)
+        for parent in reversed(parents):
+            relative = parent.as_posix()
+            if relative == "." or relative not in pruned_modes:
+                continue
+            self._restore_directory(relative, pruned_modes[relative])
+
+
+def _persist_recovery(root: Path, files: list[dict]) -> Path:
+    recovery_dir = project_path(root, ".agent-workflow/recovery")
+    recovery_dir.mkdir(parents=True, exist_ok=True)
+    recovery_dir = project_path(root, ".agent-workflow/recovery")
+    path = recovery_dir / f"rollback-{secrets.token_hex(8)}.json"
+    payload = {
+        "schema_version": 1,
+        "created_by": "agent-workflow",
+        "files": files,
+    }
+    atomic_write(path, (json.dumps(payload, indent=2) + "\n").encode("utf-8"))
+    return path
 
 
 def _prune_empty(path: Path) -> int | None:
@@ -210,7 +286,8 @@ def _locked_project(project_root: Path):
         lock.unlink()
 
 
-def _deploy(changes: _Changes, updating: bool) -> OperationReport:
+def _deploy(changes: _Changes, updating: bool,
+            extra_files: Mapping[str, str] | None = None) -> OperationReport:
     previous = changes.read(MANIFEST_PATH)
     if previous is None and updating:
         raise ValueError("No installed workflow. Run agent-workflow install first.")
@@ -226,13 +303,23 @@ def _deploy(changes: _Changes, updating: bool) -> OperationReport:
     content = manifest.dump()
     Manifest.parse(changes.root, content)
     changes.set(MANIFEST_PATH, content)
+
+    # Context starters are project-owned. Stage them in this same transaction,
+    # while keeping them out of the installer ownership manifest.
+    for name, incoming in (extra_files or {}).items():
+        project_path(changes.root, name)
+        if changes.read(name) is None:
+            payload = incoming.encode("utf-8")
+            changes.set(name, payload)
+            report.changed.append(name)
+
     changes.apply(set())
     return report
 
 
-def install(project_root: Path) -> OperationReport:
+def install(project_root: Path, *, extra_files: Mapping[str, str] | None = None) -> OperationReport:
     with _locked_project(project_root) as changes:
-        return _deploy(changes, updating=False)
+        return _deploy(changes, updating=False, extra_files=extra_files)
 
 
 def update(project_root: Path) -> OperationReport:

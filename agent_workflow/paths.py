@@ -1,7 +1,8 @@
 """Portable, project-relative destinations and atomic file replacement."""
 
+import os
+import secrets
 import stat
-import tempfile
 from collections.abc import Callable
 from pathlib import Path, PureWindowsPath
 
@@ -43,10 +44,18 @@ def atomic_write(path: Path, content: bytes, *, mode: int | None = None,
     """Replace a regular file without leaving a partially written payload."""
     if mode is None and path.exists():
         mode = stat.S_IMODE(path.stat().st_mode)
-    temporary = tempfile.NamedTemporaryFile(dir=path.parent, delete=False)
-    sibling = Path(temporary.name)
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0)
+    for _ in range(100):
+        sibling = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+        try:
+            descriptor = os.open(sibling, flags, 0o666)
+            break
+        except FileExistsError:
+            continue
+    else:
+        raise FileExistsError(f"Could not allocate a temporary sibling for {path}")
     try:
-        with temporary:
+        with os.fdopen(descriptor, "wb") as temporary:
             temporary.write(content)
         if mode is not None:
             sibling.chmod(mode)
@@ -55,10 +64,15 @@ def atomic_write(path: Path, content: bytes, *, mode: int | None = None,
         sibling.replace(path)
     except BaseException as error:
         try:
-            # Windows refuses to unlink a sibling that inherited a read-only mode.
-            if mode is not None and not mode & stat.S_IWRITE:
-                sibling.chmod(mode | stat.S_IWRITE)
             sibling.unlink(missing_ok=True)
+        except PermissionError as cleanup_error:
+            try:
+                sibling.chmod(stat.S_IMODE(sibling.stat().st_mode) | stat.S_IWRITE)
+                sibling.unlink(missing_ok=True)
+            except OSError as retry_error:
+                error.add_note(
+                    f"Could not clean up staged file {sibling}: {cleanup_error}; retry failed: {retry_error}"
+                )
         except OSError as cleanup_error:
             error.add_note(f"Could not clean up staged file {sibling}: {cleanup_error}")
         raise

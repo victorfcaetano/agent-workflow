@@ -1,4 +1,5 @@
 import json
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -69,3 +70,24 @@ class ManifestTests(unittest.TestCase):
             remove(self.root)
         self.assertTrue(notes.is_dir())
         self.assertTrue((self.root / "AGENTS.md").is_file())
+
+    def test_manifest_rejects_unowned_file_claim(self):
+        original = b"Project README must survive removal.\n"
+        for name in ("README.md", "agents.md"):
+            with self.subTest(path=name):
+                target = self.root / name
+                target.write_bytes(original)
+                self.manifest.write_text(json.dumps({
+                    "schema_version": 1,
+                    "files": [{
+                        "path": name,
+                        "source_version": "0.1.0",
+                        "sha256": hashlib.sha256(original).hexdigest(),
+                        "kind": "file",
+                        "created": True,
+                    }],
+                    "directories": [],
+                }), encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    remove(self.root)
+                self.assertEqual(target.read_bytes(), original)

@@ -71,6 +71,8 @@ Run `agent-workflow remove` to uninstall unchanged managed files and blocks. It 
 
 If a process was forcibly terminated, it can leave `.agent-workflow.lock` and a partially applied operation. Run `agent-workflow doctor` in the target project. It reports the lock and leaves cleanup to you. Confirm that no workflow mutation is still running, then inspect the working tree and `.agent-workflow/manifest.json` if present. Reconcile partial changes against your last known project state and remove the stale lock only after that inspection. Then retry the intended command.
 
+If a rollback cannot restore an original file, the CLI reports a recovery artifact in `.agent-workflow/recovery/`. Run `agent-workflow doctor`, inspect the artifact's paths and saved bytes, then reconcile those files manually before retrying. The artifact is evidence for recovery, not an instruction to overwrite later project edits.
+
 ## Examples
 
 Run `agent-workflow verify` from either example root after installing the CLI. Each example documents its app or pipeline and its expected results.

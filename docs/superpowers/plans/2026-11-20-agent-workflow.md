@@ -228,35 +228,35 @@ Expected: all content contract checks pass.
 - A new developer can run `python -m agent_workflow init <target>` or install the package, then ask the agent naturally to onboard/build; `doctor`, `status`, `verify`, `update`, and `remove` behavior is documented with expected outcomes.
 - CI runs package tests, both example suites, and build metadata checks on Windows, macOS, and Linux for Python 3.11 and 3.13.
 
-- [ ] **Step 1: Write failing end-to-end command tests**
+- [x] **Step 1: Write failing end-to-end command tests**
 
 Test `test_init_to_verify_and_remove_flow`, `test_update_flow_preserves_custom_skill`, `test_new_software_example_checks_pass`, `test_synthetic_data_pipeline_and_quality_checks_pass`, and `test_built_wheel_includes_hidden_agent_skills` using temporary target directories for lifecycle tests, direct example tests, and wheel-content inspection for the sample projects/package.
 
-- [ ] **Step 2: Run end-to-end tests and confirm expected failures**
+- [x] **Step 2: Run end-to-end tests and confirm expected failures**
 
 Run: `python -m unittest tests.test_end_to_end -v`
 Expected: FAIL because example projects and end-to-end flows do not exist.
 
-- [ ] **Step 3: Implement runnable examples and project-owned checks**
+- [x] **Step 3: Implement runnable examples and project-owned checks**
 
 The software example is a small, tested Python application. The data-engineering example loads synthetic customer/order CSVs into local SQLite, builds a documented aggregate, and tests schema, business rules, and data-quality constraints.
 
-- [ ] **Step 4: Write installation, usage, architecture, extension, compatibility, and contribution docs**
+- [x] **Step 4: Write installation, usage, architecture, extension, compatibility, and contribution docs**
 
 Give copyable commands for Windows PowerShell and POSIX shells. State the Python version, package install paths, safe update/remove behavior, static-vs-live compatibility limits, and known constraints. Document that forced process termination may leave `.agent-workflow.lock` and partial files; `doctor` reports it without removal, and manual lock cleanup is safe only after confirming no workflow mutation is still running. Add a permissive OSI-approved license with the chosen SPDX identifier in repository metadata.
 
-- [ ] **Step 5: Add cross-platform CI**
+- [x] **Step 5: Add cross-platform CI**
 
 Use GitHub Actions matrix `ubuntu-latest`, `macos-latest`, `windows-latest` and Python `3.11`, `3.13`. Run `python -m unittest discover -s tests -v`, both example checks, and package build validation.
 
-- [ ] **Step 6: Run complete local verification**
+- [x] **Step 6: Run complete local verification**
 
 Run: `python -m unittest discover -s tests -v`
 Run both examples' documented validation command from their project roots.
 Run: `python -m build` when the build frontend is available; otherwise validate package metadata using the standard available tooling and report the limitation.
 Expected: all local automated checks pass; install/init/update/doctor/status/verify/remove flows preserve unowned and customized files.
 
-- [ ] **Step 7: Review public distribution readiness and compatibility claims**
+- [x] **Step 7: Review public distribution readiness and compatibility claims**
 
 Check the final file inventory, license/copyright, package data inclusion, CLI help examples, and CI matrix. Confirm the compatibility matrix does not claim authenticated live-agent testing that did not occur.
 
@@ -276,26 +276,26 @@ Check the final file inventory, license/copyright, package data inclusion, CLI h
 - `init` installs harness assets and missing project context in one lock transaction.
 - Document Claude Code's minimum release for native `AGENTS.md` loading and its `CLAUDE.md` import fallback.
 
-- [ ] **Step 1: Add failing review regression tests**
+- [x] **Step 1: Add failing review regression tests**
 
 Add `test_manifest_rejects_unowned_file_claim`, `test_manifest_rejects_noncanonical_case_variant`, `test_rollback_recreates_pruned_directory_and_restores_snapshot_after_one_failure`, `test_rollback_persists_recovery_artifact_when_restoration_is_blocked`, `test_atomic_write_new_files_respect_umask`, `test_atomic_write_unlinks_temp_when_chmod_fails`, `test_doctor_reports_partial_asset_installation`, `test_init_rolls_back_install_when_context_write_fails`, `test_asset_inventory_has_no_duplicate_paths`, and `test_compatibility_documents_claude_agents_support_floor`.
 
-- [ ] **Step 2: Run the focused regressions and confirm failures**
+- [x] **Step 2: Run the focused regressions and confirm failures**
 
 Run the focused tests for manifest, lifecycle, paths, diagnostics, init, assets, and compatibility. Confirm each newly required behavior is missing before implementation.
 
-- [ ] **Step 3: Implement ownership bounds and failure recovery**
+- [x] **Step 3: Implement ownership bounds and failure recovery**
 
 Validate exact managed paths using the package asset catalog plus an explicit retired-path compatibility list. Include template files in the same `install` transaction without adding them to the ownership manifest. Guard every rollback action independently, retry missing parent creation, save remaining original bytes/modes in a recovery artifact if restoration still fails, and surface the artifact path through CLI and `doctor`. Preserve unowned and modified user files.
 
-- [ ] **Step 4: Improve filesystem modes and diagnostics**
+- [x] **Step 4: Improve filesystem modes and diagnostics**
 
 Create staged siblings with an umask-respecting mode, preserve existing file modes, and attempt cleanup unlink before clearing read-only mode. Report partial installs by checking expected files and managed blocks rather than parent directory existence.
 
-- [ ] **Step 5: Document host support floors and recovery**
+- [x] **Step 5: Document host support floors and recovery**
 
 State the Claude Code release floor for native `AGENTS.md` discovery and the adapter fallback for earlier clients. Document partial rollback recovery artifacts and manual inspection.
 
-- [ ] **Step 6: Run integrated verification and close the plan**
+- [x] **Step 6: Run integrated verification and close the plan**
 
 Run the complete unittest suite, both example checks, package build and metadata checks, `git diff --check`, and the independent whole-branch review. Mark prior Task 5 steps complete with the recorded local evidence; list hosted CI and authenticated host behavior as pending external verification.
