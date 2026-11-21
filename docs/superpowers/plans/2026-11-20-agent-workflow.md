@@ -259,3 +259,43 @@ Expected: all local automated checks pass; install/init/update/doctor/status/ver
 - [ ] **Step 7: Review public distribution readiness and compatibility claims**
 
 Check the final file inventory, license/copyright, package data inclusion, CLI help examples, and CI matrix. Confirm the compatibility matrix does not claim authenticated live-agent testing that did not occur.
+
+
+### Final review hardening: ownership, rollback, diagnostics, and compatibility
+
+**Files:**
+- Modify: `agent_workflow/assets_manifest.py`, `agent_workflow/manifest.py`, `agent_workflow/lifecycle.py`, `agent_workflow/paths.py`, `agent_workflow/commands.py`, `agent_workflow/cli.py`
+- Modify: `docs/compatibility.md`, `README.md`
+- Test: `tests/test_manifest.py`, `tests/test_lifecycle.py`, `tests/test_paths.py`, `tests/test_doctor_status.py`, `tests/test_init.py`, `tests/test_assets.py`, `tests/test_workflow_assets.py`
+
+**Requirements:**
+- Only current or intentionally retired Agent Workflow asset paths may be owned by the manifest. Reject arbitrary file claims and noncanonical case variants before any write or deletion.
+- Rollback continues after each directory/file restoration failure, retries missing parents when safe, preserves failed recovery payloads in a project-local artifact, and makes incomplete recovery actionable in CLI/doctor output.
+- Newly created files respect the process umask; replacements preserve existing file modes. Aborted staged writes attempt unlink before any permission-changing retry.
+- `doctor` distinguishes managed content, modified content, unowned root instructions, and missing/partial skills.
+- `init` installs harness assets and missing project context in one lock transaction.
+- Document Claude Code's minimum release for native `AGENTS.md` loading and its `CLAUDE.md` import fallback.
+
+- [ ] **Step 1: Add failing review regression tests**
+
+Add `test_manifest_rejects_unowned_file_claim`, `test_manifest_rejects_noncanonical_case_variant`, `test_rollback_recreates_pruned_directory_and_restores_snapshot_after_one_failure`, `test_rollback_persists_recovery_artifact_when_restoration_is_blocked`, `test_atomic_write_new_files_respect_umask`, `test_atomic_write_unlinks_temp_when_chmod_fails`, `test_doctor_reports_partial_asset_installation`, `test_init_rolls_back_install_when_context_write_fails`, `test_asset_inventory_has_no_duplicate_paths`, and `test_compatibility_documents_claude_agents_support_floor`.
+
+- [ ] **Step 2: Run the focused regressions and confirm failures**
+
+Run the focused tests for manifest, lifecycle, paths, diagnostics, init, assets, and compatibility. Confirm each newly required behavior is missing before implementation.
+
+- [ ] **Step 3: Implement ownership bounds and failure recovery**
+
+Validate exact managed paths using the package asset catalog plus an explicit retired-path compatibility list. Include template files in the same `install` transaction without adding them to the ownership manifest. Guard every rollback action independently, retry missing parent creation, save remaining original bytes/modes in a recovery artifact if restoration still fails, and surface the artifact path through CLI and `doctor`. Preserve unowned and modified user files.
+
+- [ ] **Step 4: Improve filesystem modes and diagnostics**
+
+Create staged siblings with an umask-respecting mode, preserve existing file modes, and attempt cleanup unlink before clearing read-only mode. Report partial installs by checking expected files and managed blocks rather than parent directory existence.
+
+- [ ] **Step 5: Document host support floors and recovery**
+
+State the Claude Code release floor for native `AGENTS.md` discovery and the adapter fallback for earlier clients. Document partial rollback recovery artifacts and manual inspection.
+
+- [ ] **Step 6: Run integrated verification and close the plan**
+
+Run the complete unittest suite, both example checks, package build and metadata checks, `git diff --check`, and the independent whole-branch review. Mark prior Task 5 steps complete with the recorded local evidence; list hosted CI and authenticated host behavior as pending external verification.
