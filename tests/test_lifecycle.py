@@ -23,7 +23,10 @@ class LifecycleTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        # Production canonicalizes project roots before operating. Resolve the
+        # fixture too so injected callbacks compare against the same paths on
+        # macOS and Windows temp-directory aliases.
+        self.root = Path(temporary.name).resolve()
         self.path_type = type(self.root)
         self.agents = self.root / "AGENTS.md"
         self.skill = self.root / SKILL
