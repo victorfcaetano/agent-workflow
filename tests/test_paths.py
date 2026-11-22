@@ -24,7 +24,7 @@ class PathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             target = root / "new.txt"
-            with patch.object(Path, "chmod", side_effect=PermissionError("Injected chmod failure")):
+            with patch.object(type(target), "chmod", side_effect=PermissionError("Injected chmod failure")):
                 with self.assertRaisesRegex(PermissionError, "chmod failure"):
                     atomic_write(target, b"New file", mode=stat.S_IREAD)
             self.assertFalse(target.exists())

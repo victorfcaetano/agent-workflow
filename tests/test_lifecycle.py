@@ -24,6 +24,7 @@ class LifecycleTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
+        self.path_type = type(self.root)
         self.agents = self.root / "AGENTS.md"
         self.skill = self.root / SKILL
         self.assets = {"AGENTS.md": BLOCK, "CLAUDE.md": BLOCK, SKILL: b"Original skill\n"}
@@ -100,7 +101,7 @@ class LifecycleTests(unittest.TestCase):
         before = self.project_bytes()
         self.assets["AGENTS.md"] = BLOCK.replace(b"Original", b"Updated")
         self.assets[SKILL] = b"Updated skill"
-        replace = Path.replace
+        replace = self.path_type.replace
 
         def edit_after_first_replacement(sibling, destination):
             result = replace(sibling, destination)
@@ -108,7 +109,7 @@ class LifecycleTests(unittest.TestCase):
                 self.skill.write_bytes(b"Concurrent edit")
             return result
 
-        with patch.object(Path, "replace", edit_after_first_replacement):
+        with patch.object(self.path_type, "replace", edit_after_first_replacement):
             with self.assertRaises(ValueError):
                 update(self.root)
         before[Path(SKILL)] = b"Concurrent edit"
@@ -117,7 +118,7 @@ class LifecycleTests(unittest.TestCase):
     def test_external_edit_between_deletions_is_preserved(self):
         install(self.root)
         before = self.project_bytes()
-        unlink = Path.unlink
+        unlink = self.path_type.unlink
 
         def edit_after_first_deletion(path, *args, **kwargs):
             result = unlink(path, *args, **kwargs)
@@ -125,7 +126,7 @@ class LifecycleTests(unittest.TestCase):
                 self.agents.write_bytes(b"Concurrent edit")
             return result
 
-        with patch.object(Path, "unlink", edit_after_first_deletion):
+        with patch.object(self.path_type, "unlink", edit_after_first_deletion):
             with self.assertRaises(ValueError):
                 remove(self.root)
         before[Path("AGENTS.md")] = b"Concurrent edit"
@@ -234,7 +235,7 @@ class LifecycleTests(unittest.TestCase):
     def test_directory_prune_failure_restores_manifest_and_files(self):
         install(self.root)
         before = self.project_bytes()
-        rmdir = Path.rmdir
+        rmdir = self.path_type.rmdir
 
         def fail_after_child_is_removed(path):
             if path == self.skill.parent.parent:
@@ -242,7 +243,7 @@ class LifecycleTests(unittest.TestCase):
                 raise PermissionError("Injected directory prune failure")
             rmdir(path)
 
-        with patch.object(Path, "rmdir", fail_after_child_is_removed):
+        with patch.object(self.path_type, "rmdir", fail_after_child_is_removed):
             with self.assertRaisesRegex(PermissionError, "prune failure"):
                 remove(self.root)
         self.assertEqual(self.project_bytes(), before)
@@ -252,8 +253,8 @@ class LifecycleTests(unittest.TestCase):
     def test_rollback_recreates_pruned_directory_and_restores_snapshot_after_one_failure(self):
         install(self.root)
         before = self.project_bytes()
-        rmdir = Path.rmdir
-        mkdir = Path.mkdir
+        rmdir = self.path_type.rmdir
+        mkdir = self.path_type.mkdir
 
         def fail_after_child_is_removed(path):
             if path == self.skill.parent.parent:
@@ -269,8 +270,8 @@ class LifecycleTests(unittest.TestCase):
                 raise PermissionError("Injected directory restore failure")
             return mkdir(path, *args, **kwargs)
 
-        with patch.object(Path, "rmdir", fail_after_child_is_removed), \
-                patch.object(Path, "mkdir", fail_first_restore):
+        with patch.object(self.path_type, "rmdir", fail_after_child_is_removed), \
+                patch.object(self.path_type, "mkdir", fail_first_restore):
             with self.assertRaisesRegex(PermissionError, "directory prune failure"):
                 remove(self.root)
         self.assertTrue(failed_restore)
@@ -279,8 +280,8 @@ class LifecycleTests(unittest.TestCase):
     def test_rollback_persists_recovery_artifact_when_restoration_is_blocked(self):
         install(self.root)
         expected_skill = self.skill.read_bytes()
-        rmdir = Path.rmdir
-        mkdir = Path.mkdir
+        rmdir = self.path_type.rmdir
+        mkdir = self.path_type.mkdir
 
         def fail_after_child_is_removed(path):
             if path == self.skill.parent.parent:
@@ -292,8 +293,8 @@ class LifecycleTests(unittest.TestCase):
                 raise PermissionError("Injected persistent restore failure")
             return mkdir(path, *args, **kwargs)
 
-        with patch.object(Path, "rmdir", fail_after_child_is_removed), \
-                patch.object(Path, "mkdir", block_restore):
+        with patch.object(self.path_type, "rmdir", fail_after_child_is_removed), \
+                patch.object(self.path_type, "mkdir", block_restore):
             with self.assertRaisesRegex(PermissionError, "directory prune failure") as raised:
                 remove(self.root)
         recovery_dir = self.root / ".agent-workflow/recovery"
@@ -308,8 +309,8 @@ class LifecycleTests(unittest.TestCase):
 
     def test_cli_reports_recovery_artifact_path(self):
         install(self.root)
-        rmdir = Path.rmdir
-        mkdir = Path.mkdir
+        rmdir = self.path_type.rmdir
+        mkdir = self.path_type.mkdir
 
         def fail_during_prune(path):
             if path == self.skill.parent.parent:
@@ -322,8 +323,8 @@ class LifecycleTests(unittest.TestCase):
             return mkdir(path, *args, **kwargs)
 
         stderr = StringIO()
-        with patch.object(Path, "rmdir", fail_during_prune), \
-                patch.object(Path, "mkdir", block_skill_restore), redirect_stderr(stderr):
+        with patch.object(self.path_type, "rmdir", fail_during_prune), \
+                patch.object(self.path_type, "mkdir", block_skill_restore), redirect_stderr(stderr):
             self.assertEqual(main(["remove", str(self.root)]), 1)
         self.assertIn("rollback-", stderr.getvalue())
         self.assertIn("recovery", stderr.getvalue().lower())
@@ -332,7 +333,7 @@ class LifecycleTests(unittest.TestCase):
         install(self.root)
         self.skill.chmod(0o444 if os.name == "nt" else 0o754)
         before = self.project_bytes()
-        unlink = Path.unlink
+        unlink = self.path_type.unlink
 
         def fail_after_skill_deletion(path, *args, **kwargs):
             if path == self.agents:
@@ -343,7 +344,7 @@ class LifecycleTests(unittest.TestCase):
                 path.chmod(stat.S_IWRITE)
             return unlink(path, *args, **kwargs)
 
-        with patch.object(Path, "unlink", fail_after_skill_deletion):
+        with patch.object(self.path_type, "unlink", fail_after_skill_deletion):
             with self.assertRaisesRegex(PermissionError, "removal failure"):
                 remove(self.root)
         self.assertEqual(self.project_bytes(), before)

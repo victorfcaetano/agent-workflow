@@ -158,7 +158,9 @@ class VerifyTests(unittest.TestCase):
             (work / "right").write_bytes(b"matching")
             command = ["./tools/compare.exe", "/B", "left", "right"]
         else:
-            shutil.copy2(shutil.which("true"), tools / "true")
+            executable = tools / "true"
+            executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            executable.chmod(0o755)
             command = ["./tools/true"]
         self.configure({"id": "relative", "command": command, "cwd": work.name})
         result, = verify(self.root)
